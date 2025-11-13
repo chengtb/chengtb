@@ -53,7 +53,7 @@ func main() {
 	// Callback with timeout handling
 	timeoutCallback := func(ctx context.Context, evt event.Event) error {
 		fmt.Printf("⏱️  [Timeout Callback] Starting long operation for event: %s\n", evt.GetID())
-		
+
 		select {
 		case <-time.After(2 * time.Second):
 			fmt.Printf("   ✅ Long operation completed\n")
