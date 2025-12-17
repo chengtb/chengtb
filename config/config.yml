@@ -1,0 +1,26 @@
+# Nacos 配置
+nacos:
+  server_addr: 127.0.0.1
+  port: 8848
+  namespace: public
+  log_dir: /tmp/nacos/log
+  cache_dir: /tmp/nacos/cache
+
+# NATS 配置
+nats:
+  url: nats://localhost:4222
+  subject: microservice.events
+
+# 服务配置
+services:
+  producer:
+    port: 8081
+    name: producer-service
+  
+  consumer:
+    port: 8082
+    name: consumer-service
+  
+  gateway:
+    port: 8080
+    name: api-gateway
