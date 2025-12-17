@@ -24,6 +24,8 @@ type Consumer struct {
 	natsConn    *nats.Conn
 	nacosClient naming_client.INamingClient
 	sub         *nats.Subscription
+	serviceIP   string
+	servicePort uint64
 }
 
 func NewConsumer(natsURL, nacosAddr string, nacosPort uint64) (*Consumer, error) {
@@ -79,6 +81,10 @@ func (c *Consumer) RegisterService(ip string, port uint64) error {
 		return fmt.Errorf("failed to register service: %w", err)
 	}
 
+	// 保存注册信息用于注销
+	c.serviceIP = ip
+	c.servicePort = port
+
 	log.Printf("Service %s registered successfully at %s:%d", ServiceName, ip, port)
 	return nil
 }
@@ -104,10 +110,10 @@ func (c *Consumer) Close() {
 	if c.natsConn != nil {
 		c.natsConn.Close()
 	}
-	if c.nacosClient != nil {
+	if c.nacosClient != nil && c.serviceIP != "" {
 		c.nacosClient.DeregisterInstance(vo.DeregisterInstanceParam{
-			Ip:          "127.0.0.1",
-			Port:        ServicePort,
+			Ip:          c.serviceIP,
+			Port:        c.servicePort,
 			ServiceName: ServiceName,
 		})
 	}

@@ -21,6 +21,8 @@ const (
 type Producer struct {
 	natsConn    *nats.Conn
 	nacosClient naming_client.INamingClient
+	serviceIP   string
+	servicePort uint64
 }
 
 func NewProducer(natsURL, nacosAddr string, nacosPort uint64) (*Producer, error) {
@@ -76,6 +78,10 @@ func (p *Producer) RegisterService(ip string, port uint64) error {
 		return fmt.Errorf("failed to register service: %w", err)
 	}
 
+	// 保存注册信息用于注销
+	p.serviceIP = ip
+	p.servicePort = port
+
 	log.Printf("Service %s registered successfully at %s:%d", ServiceName, ip, port)
 	return nil
 }
@@ -106,10 +112,10 @@ func (p *Producer) Close() {
 	if p.natsConn != nil {
 		p.natsConn.Close()
 	}
-	if p.nacosClient != nil {
+	if p.nacosClient != nil && p.serviceIP != "" {
 		p.nacosClient.DeregisterInstance(vo.DeregisterInstanceParam{
-			Ip:          "127.0.0.1",
-			Port:        ServicePort,
+			Ip:          p.serviceIP,
+			Port:        p.servicePort,
 			ServiceName: ServiceName,
 		})
 	}

@@ -23,6 +23,8 @@ const (
 type Gateway struct {
 	natsConn    *nats.Conn
 	nacosClient naming_client.INamingClient
+	serviceIP   string
+	servicePort uint64
 }
 
 type MessageRequest struct {
@@ -86,6 +88,10 @@ func (g *Gateway) RegisterService(ip string, port uint64) error {
 	if err != nil || !success {
 		return fmt.Errorf("failed to register service: %w", err)
 	}
+
+	// 保存注册信息用于注销
+	g.serviceIP = ip
+	g.servicePort = port
 
 	log.Printf("Service %s registered successfully at %s:%d", ServiceName, ip, port)
 	return nil
@@ -156,10 +162,10 @@ func (g *Gateway) Close() {
 	if g.natsConn != nil {
 		g.natsConn.Close()
 	}
-	if g.nacosClient != nil {
+	if g.nacosClient != nil && g.serviceIP != "" {
 		g.nacosClient.DeregisterInstance(vo.DeregisterInstanceParam{
-			Ip:          "127.0.0.1",
-			Port:        ServicePort,
+			Ip:          g.serviceIP,
+			Port:        g.servicePort,
 			ServiceName: ServiceName,
 		})
 	}
