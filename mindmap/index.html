@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>树状思维导图 – MindMap Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── top bar ── */
+    header {
+      background: #1a237e;
+      color: #fff;
+      padding: 12px 20px;
+      font-size: 18px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    /* ── main layout ── */
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── left panel ── */
+    .panel {
+      width: 280px;
+      background: #fff;
+      border-right: 1px solid #ddd;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 14px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .panel h3 {
+      font-size: 14px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      color: #333;
+    }
+
+    .form-group input, .form-group select {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .form-group input:focus, .form-group select:focus {
+      border-color: #4285f4;
+    }
+
+    .color-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .color-row input[type="color"] {
+      width: 38px;
+      height: 32px;
+      padding: 2px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .color-row label { flex: 1; }
+
+    button {
+      padding: 9px 0;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: opacity .15s;
+    }
+    button:hover { opacity: .85; }
+
+    .btn-add    { background: #4285f4; color: #fff; }
+    .btn-delete { background: #e53935; color: #fff; }
+    .btn-root   { background: #43a047; color: #fff; }
+
+    hr { border: none; border-top: 1px solid #eee; }
+
+    /* ── event log ── */
+    .log-box {
+      flex: 1;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 12px;
+      font-family: monospace;
+      overflow-y: auto;
+      background: #fafafa;
+      min-height: 120px;
+      max-height: 200px;
+    }
+
+    .log-entry { padding: 3px 0; border-bottom: 1px solid #f0f0f0; }
+    .log-add    { color: #2e7d32; }
+    .log-delete { color: #c62828; }
+
+    /* ── canvas area ── */
+    #map-container {
+      flex: 1;
+      overflow: auto;
+      padding: 20px;
+      background: #e8eaf6;
+    }
+
+    /* wrapper keeps canvas left-aligned inside overflow scroll */
+    #map-inner {
+      position: relative;
+      display: inline-block;
+      min-width: 100%;
+      min-height: 100%;
+    }
+
+    /* ── node selection highlight ── */
+    .mindmap-node-selected {
+      outline: 3px solid #ff9800 !important;
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+
+<header>🧠 树状思维导图 – MindMap</header>
+
+<div class="main">
+
+  <!-- ── control panel ── -->
+  <div class="panel">
+
+    <h3>添加节点</h3>
+
+    <div class="form-group">
+      <label>节点文字</label>
+      <input id="inp-text" type="text" value="新节点" placeholder="节点文字" />
+    </div>
+
+    <div class="form-group">
+      <label>父节点 ID（留空 = 根节点）</label>
+      <select id="sel-parent">
+        <option value="">-- 无（创建根节点）--</option>
+      </select>
+    </div>
+
+    <!-- style customisation -->
+    <div class="form-group">
+      <label>背景色</label>
+      <div class="color-row">
+        <input id="inp-bg" type="color" value="#4285f4" />
+        <span id="lbl-bg">#4285f4</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>文字颜色</label>
+      <div class="color-row">
+        <input id="inp-fg" type="color" value="#ffffff" />
+        <span id="lbl-fg">#ffffff</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>圆角 (px)</label>
+      <input id="inp-radius" type="number" value="6" min="0" max="50" />
+    </div>
+
+    <div class="form-group">
+      <label>字体大小 (px)</label>
+      <input id="inp-fs" type="number" value="14" min="8" max="32" />
+    </div>
+
+    <button class="btn-add" id="btn-add">＋ 添加节点</button>
+
+    <hr />
+
+    <h3>删除节点</h3>
+
+    <div class="form-group">
+      <label>选择要删除的节点</label>
+      <select id="sel-delete">
+        <option value="">-- 选择节点 --</option>
+      </select>
+    </div>
+
+    <button class="btn-delete" id="btn-delete">✕ 删除节点</button>
+
+    <hr />
+
+    <h3>事件日志</h3>
+    <div class="log-box" id="log-box"></div>
+
+  </div>
+
+  <!-- ── mind-map canvas ── -->
+  <div id="map-container">
+    <div id="map-inner"></div>
+  </div>
+
+</div>
+
+<script src="mindmap.js"></script>
+<script>
+  // ── Instantiate ─────────────────────────────────────────────────────────────
+  const mm = new MindMap('#map-inner', {
+    nodeWidth: 140,
+    nodeHeight: 44,
+    hSpacing: 52,
+    vSpacing: 70,
+    lineColor: '#7986cb',
+    lineWidth: 2,
+    defaultStyle: {
+      backgroundColor: '#4285f4',
+      color: '#ffffff',
+      borderRadius: '6px',
+      fontSize: '14px',
+      fontFamily: 'Arial, sans-serif',
+      border: '2px solid #2b5fc7',
+      padding: '6px 12px',
+      boxSizing: 'border-box',
+      textAlign: 'center',
+      cursor: 'pointer',
+      userSelect: 'none',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      boxShadow: '0 2px 6px rgba(0,0,0,.25)',
+    },
+  });
+
+  // ── Event handlers ──────────────────────────────────────────────────────────
+  mm.on('nodeAdded', ({ node }) => {
+    log(`nodeAdded  id="${node.id}"  text="${node.text}"  parentId="${node.parentId}"`, 'add');
+    refreshSelects();
+  });
+
+  mm.on('nodeDeleted', ({ nodeIds }) => {
+    log(`nodeDeleted  ids=[${nodeIds.join(', ')}]`, 'delete');
+    refreshSelects();
+    // Clear selection highlight if selected node was deleted
+    if (nodeIds.includes(selectedId)) selectedId = null;
+  });
+
+  // ── Node selection ──────────────────────────────────────────────────────────
+  let selectedId = null;
+
+  document.getElementById('map-inner').addEventListener('click', (e) => {
+    const el = e.target.closest('[data-node-id]');
+    if (!el) return;
+    const id = el.getAttribute('data-node-id');
+
+    // Deselect previous
+    document.querySelectorAll('[data-node-id]').forEach((n) =>
+      n.classList.remove('mindmap-node-selected'),
+    );
+
+    if (id === selectedId) {
+      selectedId = null;
+    } else {
+      selectedId = id;
+      el.classList.add('mindmap-node-selected');
+      // Auto-fill the parent selector
+      document.getElementById('sel-parent').value = id;
+      document.getElementById('sel-delete').value = id;
+    }
+  });
+
+  // ── UI helpers ──────────────────────────────────────────────────────────────
+
+  function refreshSelects() {
+    const parentSel = document.getElementById('sel-parent');
+    const deleteSel = document.getElementById('sel-delete');
+    const prevParent = parentSel.value;
+    const prevDelete = deleteSel.value;
+
+    parentSel.innerHTML = '<option value="">-- 无（创建根节点）--</option>';
+    deleteSel.innerHTML = '<option value="">-- 选择节点 --</option>';
+
+    // Walk the tree in BFS order for display
+    const rootId = mm.getRootId();
+    if (!rootId) return;
+
+    const queue = [{ id: rootId, depth: 0 }];
+    while (queue.length) {
+      const { id, depth } = queue.shift();
+      const node = mm.getNode(id);
+      if (!node) continue;
+      const indent = '　'.repeat(depth);
+      const label = `${indent}${node.text} (${id})`;
+
+      const opt1 = new Option(label, id);
+      const opt2 = new Option(label, id);
+      parentSel.appendChild(opt1);
+      deleteSel.appendChild(opt2);
+
+      node.children.forEach((cid) => queue.push({ id: cid, depth: depth + 1 }));
+    }
+
+    // Restore previous selections if still valid
+    if ([...parentSel.options].some((o) => o.value === prevParent))
+      parentSel.value = prevParent;
+    if ([...deleteSel.options].some((o) => o.value === prevDelete))
+      deleteSel.value = prevDelete;
+  }
+
+  function log(msg, type) {
+    const box = document.getElementById('log-box');
+    const entry = document.createElement('div');
+    entry.className = `log-entry log-${type}`;
+    const now = new Date().toLocaleTimeString();
+    entry.textContent = `[${now}] ${msg}`;
+    box.prepend(entry);
+  }
+
+  // Sync color label displays
+  ['bg', 'fg'].forEach((key) => {
+    const inp = document.getElementById(`inp-${key}`);
+    const lbl = document.getElementById(`lbl-${key}`);
+    inp.addEventListener('input', () => { lbl.textContent = inp.value; });
+  });
+
+  // ── Button: Add node ────────────────────────────────────────────────────────
+  document.getElementById('btn-add').addEventListener('click', () => {
+    const text    = document.getElementById('inp-text').value.trim() || '新节点';
+    const parentId = document.getElementById('sel-parent').value || null;
+    const bg      = document.getElementById('inp-bg').value;
+    const fg      = document.getElementById('inp-fg').value;
+    const radius  = document.getElementById('inp-radius').value + 'px';
+    const fs      = document.getElementById('inp-fs').value + 'px';
+
+    // Validate: root already exists and no parent selected
+    if (parentId === null && mm.getRootId() !== null) {
+      alert('根节点已存在，请选择一个父节点。');
+      return;
+    }
+
+    const style = {
+      backgroundColor: bg,
+      color: fg,
+      borderRadius: radius,
+      fontSize: fs,
+      border: `2px solid ${darken(bg)}`,
+    };
+
+    try {
+      const newId = mm.addNode(parentId, { text }, style);
+      // Auto-select new node
+      document.getElementById('sel-parent').value = newId;
+      document.getElementById('sel-delete').value = newId;
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  // ── Button: Delete node ─────────────────────────────────────────────────────
+  document.getElementById('btn-delete').addEventListener('click', () => {
+    const id = document.getElementById('sel-delete').value;
+    if (!id) { alert('请先选择要删除的节点。'); return; }
+    try {
+      mm.deleteNode(id);
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  /** Darken a hex colour by ~20 % for the border. */
+  function darken(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const r = Math.max(0, (n >> 16) - 40);
+    const g = Math.max(0, ((n >> 8) & 0xff) - 40);
+    const b = Math.max(0, (n & 0xff) - 40);
+    return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
+  }
+
+  // ── Seed an initial tree ────────────────────────────────────────────────────
+  const rootId = mm.addNode(null, { id: 'root', text: '思维导图' }, {
+    backgroundColor: '#1a237e',
+    color: '#fff',
+    border: '2px solid #0d1257',
+    fontSize: '15px',
+    fontWeight: 'bold',
+  });
+
+  const ideas = [
+    { text: '想法 A', bg: '#43a047', border: '#2e7d32' },
+    { text: '想法 B', bg: '#fb8c00', border: '#e65100' },
+    { text: '想法 C', bg: '#8e24aa', border: '#6a1b9a' },
+  ];
+  ideas.forEach(({ text, bg, border }) => {
+    const pid = mm.addNode(rootId, { text }, {
+      backgroundColor: bg,
+      border: `2px solid ${border}`,
+      color: '#fff',
+    });
+    mm.addNode(pid, { text: `${text}-1` }, { backgroundColor: bg, border: `2px solid ${border}`, color: '#fff', fontSize: '12px' });
+    mm.addNode(pid, { text: `${text}-2` }, { backgroundColor: bg, border: `2px solid ${border}`, color: '#fff', fontSize: '12px' });
+  });
+
+  refreshSelects();
+</script>
+</body>
+</html>
