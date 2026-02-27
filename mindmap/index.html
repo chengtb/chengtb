@@ -427,25 +427,25 @@
     fontSize: '12px',
   };
 
-  const rootId = mm.addNode(null, { id: 'root', text: '组织结构' }, rootStyle);
+  const rootId = mm.addNode(null, { id: 'root', text: '组织结构图' }, rootStyle);
 
-  const srcId  = mm.addNode(rootId, { text: '📁 src' },   folderStyle);
-  mm.addNode(srcId,  { text: '📄 index.js' },   fileStyle);
-  mm.addNode(srcId,  { text: '📄 app.js' },     fileStyle);
-  const compId = mm.addNode(srcId, { text: '📁 components' }, folderStyle);
-  mm.addNode(compId, { text: '📄 Header.vue' }, fileStyle);
-  mm.addNode(compId, { text: '📄 Footer.vue' }, fileStyle);
+  const srcId  = mm.addNode(rootId, { text: '目录组织图' },   folderStyle);
+  mm.addNode(srcId,  { text: '目录组织图' },   fileStyle);
+  mm.addNode(srcId,  { text: '目录组织图' },     fileStyle);
+  const compId = mm.addNode(srcId, { text: '目录组织图' }, folderStyle);
+  mm.addNode(compId, { text: '目录组织图' }, fileStyle);
+  mm.addNode(compId, { text: '目录组织图' }, fileStyle);
 
-  const docsId = mm.addNode(rootId, { text: '📁 docs' },  folderStyle);
-  mm.addNode(docsId, { text: '📄 README.md' }, fileStyle);
-  mm.addNode(docsId, { text: '📄 API.md' },    fileStyle);
+  const docsId = mm.addNode(rootId, { text: '目录组织图' },  folderStyle);
+  mm.addNode(docsId, { text: '目录组织图' }, fileStyle);
+  mm.addNode(docsId, { text: '目录组织图' },    fileStyle);
 
-  const testId = mm.addNode(rootId, { text: '📁 tests' }, folderStyle);
-  mm.addNode(testId, { text: '📄 unit.test.js' },  fileStyle);
-  mm.addNode(testId, { text: '📄 e2e.test.js' },   fileStyle);
+  const testId = mm.addNode(rootId, { text: '目录组织图' }, folderStyle);
+  mm.addNode(testId, { text: '目录组织图' },  fileStyle);
+  mm.addNode(testId, { text: '目录组织图' },   fileStyle);
 
-  mm.addNode(rootId, { text: '📄 package.json' },  fileStyle);
-  mm.addNode(rootId, { text: '📄 .gitignore' },     fileStyle);
+  mm.addNode(rootId, { text: '目录组织图' },  fileStyle);
+  mm.addNode(rootId, { text: '目录组织图' },     fileStyle);
 
   refreshSelects();
 </script>
