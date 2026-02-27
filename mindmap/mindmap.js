@@ -59,9 +59,8 @@ class MindMap {
           textAlign: 'left',
           cursor: 'pointer',
           userSelect: 'none',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
+          whiteSpace: 'normal',
+          wordBreak: 'break-word',
         },
       },
       options,
@@ -284,15 +283,15 @@ class MindMap {
    * row (y) and an indented column (x = depth × indentWidth).
    */
   _computeLayoutDirectory() {
-    const { nodeHeight, vSpacing } = this._opts;
+    const { vSpacing } = this._opts;
     const indentWidth = Math.max(1, this._opts.indentWidth);
-    let row = 0;
+    let curY = 0;
 
     const traverse = (id, depth) => {
       const node = this._nodes.get(id);
       node.x = depth * indentWidth;
-      node.y = row * (nodeHeight + vSpacing);
-      row++;
+      node.y = curY;
+      curY += (node.h || this._opts.nodeHeight) + vSpacing;
       node.children.forEach((cid) => traverse(cid, depth + 1));
     };
 
@@ -336,7 +335,7 @@ class MindMap {
         hSpacing * (node.children.length - 1);
 
       let left = cx - totalW / 2;
-      const childY = y + nodeHeight + vSpacing;
+      const childY = y + (node.h || nodeHeight) + vSpacing;
       node.children.forEach((cid) => {
         const cw = subtreeW.get(cid);
         position(cid, left + cw / 2, childY);
@@ -386,19 +385,19 @@ class MindMap {
     rootNode.x = totalW / 2 - (rootNode.w || this._opts.nodeWidth) / 2;
     rootNode.y = 0;
 
-    const childStartY = nodeHeight + this._opts.rootChildVSpacing;
+    const childStartY = (rootNode.h || nodeHeight) + this._opts.rootChildVSpacing;
 
     // Lay out each child's directory sub-tree inside its allocated column.
     let curX = 0;
     rootNode.children.forEach((cid, i) => {
       if (i > 0) curX += hSpacing;
-      let row = 0;
+      let curY = childStartY;
       const layoutDir = (id, colX, depth) => {
         const node = this._nodes.get(id);
         if (!node) return;
         node.x = colX + depth * indentWidth;
-        node.y = childStartY + row * (nodeHeight + vSpacing);
-        row++;
+        node.y = curY;
+        curY += (node.h || nodeHeight) + vSpacing;
         node.children.forEach((childId) => layoutDir(childId, colX, depth + 1));
       };
       layoutDir(cid, curX, 0);
@@ -437,11 +436,12 @@ class MindMap {
         node.el = el;
       }
 
-      // Apply node style, then enforce max-width and height (no fixed width)
+      // Apply node style, then enforce max-width and auto height (no fixed width/height)
       Object.assign(el.style, node.style);
       el.style.position = 'absolute';
       el.style.maxWidth = nodeMaxWidth + 'px';
-      el.style.height = nodeHeight + 'px';
+      el.style.height = 'auto';
+      el.style.minHeight = nodeHeight + 'px';
       el.style.display = 'flex';
       el.style.alignItems = 'center';
       el.style.justifyContent = 'center';
@@ -449,10 +449,11 @@ class MindMap {
       el.textContent = node.text;
     });
 
-    // ── Measure actual rendered widths ──────────────────────────────────────────
+    // ── Measure actual rendered widths and heights ──────────────────────────────
     this._nodes.forEach((node) => {
       const el = node.el || this._layer.querySelector(`[data-node-id="${node.id}"]`);
       node.w = el ? el.offsetWidth : nodeMaxWidth;
+      node.h = el ? el.offsetHeight : nodeHeight;
     });
 
     // ── Compute layout (uses node.w) ────────────────────────────────────────────
@@ -465,7 +466,7 @@ class MindMap {
     this._nodes.forEach((n) => {
       minX = Math.min(minX, n.x);
       maxX = Math.max(maxX, n.x + n.w);
-      maxY = Math.max(maxY, n.y + nodeHeight);
+      maxY = Math.max(maxY, n.y + n.h);
     });
 
     const W = maxX - minX + PADDING * 2;
@@ -500,7 +501,7 @@ class MindMap {
       if (isMixed && parent.parentId === null) {
         // Root → direct child: smooth bezier (org-chart style)
         const x1 = parent.x + parent.w / 2 + offsetX;
-        const y1 = parent.y + nodeHeight + offsetY;
+        const y1 = parent.y + parent.h + offsetY;
         const x2 = node.x + node.w / 2 + offsetX;
         const y2 = node.y + offsetY;
         const midY = (y1 + y2) / 2;
@@ -513,14 +514,14 @@ class MindMap {
         // vertical spine goes from parent's bottom-center down to child's row,
         // then a horizontal stub runs right to the child's left edge.
         const xSpine = node.x - indentWidth / 2 + offsetX;
-        const yTop = parent.y + nodeHeight / 2 + offsetY;
-        const yBot = node.y + nodeHeight / 2 + offsetY;
+        const yTop = parent.y + parent.h / 2 + offsetY;
+        const yBot = node.y + node.h / 2 + offsetY;
         const xEnd = node.x + offsetX;
         path.setAttribute('d', `M ${xSpine} ${yTop} V ${yBot} H ${xEnd}`);
       } else {
         // Smooth bezier connector for tree mode
         const x1 = parent.x + parent.w / 2 + offsetX;
-        const y1 = parent.y + nodeHeight + offsetY;
+        const y1 = parent.y + parent.h + offsetY;
         const x2 = node.x + node.w / 2 + offsetX;
         const y2 = node.y + offsetY;
         const midY = (y1 + y2) / 2;
