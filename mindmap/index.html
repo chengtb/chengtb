@@ -130,10 +130,13 @@
     /* ── canvas area ── */
     #map-container {
       flex: 1;
-      overflow: auto;
+      overflow: scroll;
+      scrollbar-width: none; /* Firefox */
       padding: 20px;
       background: #e8eaf6;
+      cursor: grab;
     }
+    #map-container::-webkit-scrollbar { display: none; } /* Chrome / Safari */
 
     /* wrapper keeps canvas left-aligned inside overflow scroll */
     #map-inner {
@@ -448,6 +451,61 @@
   mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构' },     fileStyle);
 
   refreshSelects();
+
+  // ── Drag-to-pan ─────────────────────────────────────────────────────────────
+  (function () {
+    const container = document.getElementById('map-container');
+    let dragging = false;
+    let startX = 0, startY = 0, scrollLeft = 0, scrollTop = 0;
+
+    function beginDrag(pageX, pageY) {
+      dragging = true;
+      startX = pageX;
+      startY = pageY;
+      scrollLeft = container.scrollLeft;
+      scrollTop  = container.scrollTop;
+      container.style.cursor = 'grabbing';
+    }
+
+    function moveDrag(pageX, pageY) {
+      if (!dragging) return;
+      container.scrollLeft = scrollLeft - (pageX - startX);
+      container.scrollTop  = scrollTop  - (pageY - startY);
+    }
+
+    function endDrag() {
+      dragging = false;
+      container.style.cursor = 'grab';
+    }
+
+    // Mouse
+    container.addEventListener('mousedown', (e) => {
+      if (e.target.closest('[data-node-id]')) return;
+      e.preventDefault();
+      beginDrag(e.pageX, e.pageY);
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      moveDrag(e.pageX, e.pageY);
+    });
+    document.addEventListener('mouseup', endDrag);
+
+    // Touch
+    container.addEventListener('touchstart', (e) => {
+      if (e.target.closest('[data-node-id]')) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      beginDrag(t.pageX, t.pageY);
+    }, { passive: false });
+    container.addEventListener('touchmove', (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      moveDrag(t.pageX, t.pageY);
+    }, { passive: false });
+    container.addEventListener('touchend', endDrag);
+  })();
 </script>
 </body>
 </html>
