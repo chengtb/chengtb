@@ -16,6 +16,10 @@
  * Layout modes (options.layout)
  *   'directory'  (default) – vertical list with per-level indentation, L-shaped connectors
  *   'tree'                 – top-down tree with horizontal sibling spread, bezier connectors
+ *
+ * Drag-to-pan
+ *   When options.pannable is true (default), drag-to-pan is automatically enabled on the
+ *   parent element of the container (the scroll viewport).  Mouse and touch are both supported.
  */
 class MindMap {
   /**
@@ -32,6 +36,7 @@ class MindMap {
    * @param {string}  [options.lineColor='#90a4ae']
    * @param {number}  [options.lineWidth=1.5]
    * @param {object}  [options.defaultStyle]  CSS properties applied to every node
+   * @param {boolean} [options.pannable=true]  enable drag-to-pan on the parent scroll container
    */
   constructor(container, options = {}) {
     this._container =
@@ -51,6 +56,7 @@ class MindMap {
         rootGroupVSpacing: 40,
         lineColor: '#90a4ae',
         lineWidth: 1.5,
+        pannable: true,
         defaultStyle: {
           backgroundColor: '#e3f2fd',
           color: '#0d47a1',
@@ -109,6 +115,75 @@ class MindMap {
       if (node) this._emit('nodeClicked', { node: this._publicNode(node) });
     };
     this._layer.addEventListener('click', this._layerClickHandler);
+
+    this._initPan();
+  }
+
+  /**
+   * Attach drag-to-pan (mouse + touch) to the parent scroll container.
+   * Skips setup when options.pannable is false or there is no parent element.
+   * @private
+   */
+  _initPan() {
+    const scrollEl = this._container.parentElement;
+    if (!this._opts.pannable || !scrollEl) return;
+
+    let dragging = false;
+    let startX = 0, startY = 0, scrollLeft = 0, scrollTop = 0;
+
+    const beginDrag = (pageX, pageY) => {
+      dragging = true;
+      startX = pageX;
+      startY = pageY;
+      scrollLeft = scrollEl.scrollLeft;
+      scrollTop  = scrollEl.scrollTop;
+      scrollEl.style.cursor = 'grabbing';
+    };
+
+    const moveDrag = (pageX, pageY) => {
+      if (!dragging) return;
+      scrollEl.scrollLeft = scrollLeft - (pageX - startX);
+      scrollEl.scrollTop  = scrollTop  - (pageY - startY);
+    };
+
+    const endDrag = () => {
+      dragging = false;
+      scrollEl.style.cursor = 'grab';
+    };
+
+    this._panMouseDown = (e) => {
+      if (e.target.closest('[data-node-id]')) return;
+      e.preventDefault();
+      beginDrag(e.pageX, e.pageY);
+    };
+    this._panMouseMove = (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      moveDrag(e.pageX, e.pageY);
+    };
+    this._panMouseUp = endDrag;
+
+    this._panTouchStart = (e) => {
+      if (e.target.closest('[data-node-id]')) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      beginDrag(t.pageX, t.pageY);
+    };
+    this._panTouchMove = (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      moveDrag(t.pageX, t.pageY);
+    };
+    this._panTouchEnd = endDrag;
+
+    scrollEl.style.cursor = 'grab';
+    scrollEl.addEventListener('mousedown', this._panMouseDown);
+    document.addEventListener('mousemove', this._panMouseMove);
+    document.addEventListener('mouseup', this._panMouseUp);
+    scrollEl.addEventListener('touchstart', this._panTouchStart, { passive: false });
+    scrollEl.addEventListener('touchmove', this._panTouchMove, { passive: false });
+    scrollEl.addEventListener('touchend', this._panTouchEnd);
   }
 
   // ─── Public API ────────────────────────────────────────────────────────────

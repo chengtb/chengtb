@@ -77,6 +77,7 @@ new MindMap(container, options?)
 | `rootGroupVSpacing` | `number` | `40` | 多棵独立根树之间的垂直间距（px）|
 | `lineColor` | `string` | `'#90a4ae'` | 连接线颜色 |
 | `lineWidth` | `number` | `1.5` | 连接线宽度（px）|
+| `pannable`  | `boolean` | `true` | 在容器父元素（滚动视口）上启用拖动平移（鼠标 + 触摸）。设为 `false` 可禁用。|
 | `defaultStyle` | `object` | 见下方 | 所有节点共用的默认 CSS 属性 |
 
 #### defaultStyle 默认值
