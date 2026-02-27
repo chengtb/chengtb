@@ -54,7 +54,7 @@ class MindMap {
           fontSize: '13px',
           fontFamily: 'Consolas, "Courier New", monospace',
           border: '1px solid #90caf9',
-          padding: '4px 10px',
+          padding: '4px 15px',
           boxSizing: 'border-box',
           textAlign: 'left',
           cursor: 'pointer',
@@ -304,19 +304,20 @@ class MindMap {
    * (top-down) so children fan out horizontally below their parent.
    */
   _computeLayoutTree() {
-    const { nodeWidth, nodeHeight, hSpacing, vSpacing } = this._opts;
+    const { nodeHeight, hSpacing, vSpacing } = this._opts;
     const subtreeW = new Map();
 
     const measureWidth = (id) => {
       const node = this._nodes.get(id);
+      const nw = node.w || this._opts.nodeWidth;
       if (!node.children.length) {
-        subtreeW.set(id, nodeWidth);
-        return nodeWidth;
+        subtreeW.set(id, nw);
+        return nw;
       }
       const childrenTotal =
         node.children.reduce((s, cid) => s + measureWidth(cid), 0) +
         hSpacing * (node.children.length - 1);
-      const w = Math.max(childrenTotal, nodeWidth);
+      const w = Math.max(childrenTotal, nw);
       subtreeW.set(id, w);
       return w;
     };
@@ -325,7 +326,8 @@ class MindMap {
 
     const position = (id, cx, y) => {
       const node = this._nodes.get(id);
-      node.x = cx - nodeWidth / 2;
+      const nw = node.w || this._opts.nodeWidth;
+      node.x = cx - nw / 2;
       node.y = y;
       if (!node.children.length) return;
 
@@ -351,7 +353,7 @@ class MindMap {
    * vertically in directory style (indented list, L-shaped connectors).
    */
   _computeLayoutMixed() {
-    const { nodeWidth, nodeHeight, hSpacing, vSpacing } = this._opts;
+    const { nodeHeight, hSpacing, vSpacing } = this._opts;
     const indentWidth = Math.max(1, this._opts.indentWidth);
     const rootNode = this._nodes.get(this._rootId);
 
@@ -365,8 +367,9 @@ class MindMap {
     // given depth (0 = column origin).
     const subtreeColWidth = (id, depth) => {
       const node = this._nodes.get(id);
-      if (!node) return depth * indentWidth + nodeWidth;
-      const w = depth * indentWidth + nodeWidth;
+      if (!node) return depth * indentWidth + this._opts.nodeWidth;
+      const nw = node.w || this._opts.nodeWidth;
+      const w = depth * indentWidth + nw;
       return node.children.reduce(
         (max, cid) => Math.max(max, subtreeColWidth(cid, depth + 1)),
         w,
@@ -380,7 +383,7 @@ class MindMap {
       hSpacing * (rootNode.children.length - 1);
 
     // Root is horizontally centered above all child columns.
-    rootNode.x = totalW / 2 - nodeWidth / 2;
+    rootNode.x = totalW / 2 - (rootNode.w || this._opts.nodeWidth) / 2;
     rootNode.y = 0;
 
     const childStartY = nodeHeight + this._opts.rootChildVSpacing;
@@ -415,18 +418,53 @@ class MindMap {
       return;
     }
 
+    const PADDING = 24;
+    const { nodeHeight, lineColor, lineWidth } = this._opts;
+    const nodeMaxWidth = 200;
+
+    // ── Pass 1: create / update node DOM elements (no positioning yet) ─────────
+    // Remove stale DOM nodes
+    [...this._layer.querySelectorAll('[data-node-id]')].forEach((el) => {
+      if (!this._nodes.has(el.getAttribute('data-node-id'))) el.remove();
+    });
+
+    this._nodes.forEach((node) => {
+      let el = this._layer.querySelector(`[data-node-id="${node.id}"]`);
+      if (!el) {
+        el = document.createElement('div');
+        el.setAttribute('data-node-id', node.id);
+        this._layer.appendChild(el);
+        node.el = el;
+      }
+
+      // Apply node style, then enforce max-width and height (no fixed width)
+      Object.assign(el.style, node.style);
+      el.style.position = 'absolute';
+      el.style.maxWidth = nodeMaxWidth + 'px';
+      el.style.height = nodeHeight + 'px';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+
+      el.textContent = node.text;
+    });
+
+    // ── Measure actual rendered widths ──────────────────────────────────────────
+    this._nodes.forEach((node) => {
+      const el = node.el || this._layer.querySelector(`[data-node-id="${node.id}"]`);
+      node.w = el ? el.offsetWidth : nodeMaxWidth;
+    });
+
+    // ── Compute layout (uses node.w) ────────────────────────────────────────────
     this._computeLayout();
 
-    const PADDING = 24;
-    const { nodeWidth, nodeHeight, lineColor, lineWidth } = this._opts;
-
-    // Compute canvas bounds
+    // ── Compute canvas bounds ───────────────────────────────────────────────────
     let minX = Infinity,
       maxX = -Infinity,
       maxY = -Infinity;
     this._nodes.forEach((n) => {
       minX = Math.min(minX, n.x);
-      maxX = Math.max(maxX, n.x + nodeWidth);
+      maxX = Math.max(maxX, n.x + n.w);
       maxY = Math.max(maxY, n.y + nodeHeight);
     });
 
@@ -442,7 +480,7 @@ class MindMap {
     this._layer.style.width = W + 'px';
     this._layer.style.height = H + 'px';
 
-    // ── Draw connectors ──────────────────────────────────────────────────────
+    // ── Draw connectors ──────────────────────────────────────────────────────────
     this._svg.innerHTML = '';
     const rootNode = this._rootId ? this._nodes.get(this._rootId) : null;
     const isMixed = !!(rootNode && rootNode.layoutType === '组织结构');
@@ -461,9 +499,9 @@ class MindMap {
 
       if (isMixed && parent.parentId === null) {
         // Root → direct child: smooth bezier (org-chart style)
-        const x1 = parent.x + nodeWidth / 2 + offsetX;
+        const x1 = parent.x + parent.w / 2 + offsetX;
         const y1 = parent.y + nodeHeight + offsetY;
-        const x2 = node.x + nodeWidth / 2 + offsetX;
+        const x2 = node.x + node.w / 2 + offsetX;
         const y2 = node.y + offsetY;
         const midY = (y1 + y2) / 2;
         path.setAttribute(
@@ -481,9 +519,9 @@ class MindMap {
         path.setAttribute('d', `M ${xSpine} ${yTop} V ${yBot} H ${xEnd}`);
       } else {
         // Smooth bezier connector for tree mode
-        const x1 = parent.x + nodeWidth / 2 + offsetX;
+        const x1 = parent.x + parent.w / 2 + offsetX;
         const y1 = parent.y + nodeHeight + offsetY;
-        const x2 = node.x + nodeWidth / 2 + offsetX;
+        const x2 = node.x + node.w / 2 + offsetX;
         const y2 = node.y + offsetY;
         const midY = (y1 + y2) / 2;
         path.setAttribute(
@@ -498,38 +536,12 @@ class MindMap {
       this._svg.appendChild(path);
     });
 
-    // ── Draw / update node boxes ─────────────────────────────────────────────
-
-    // Remove stale DOM nodes
-    [...this._layer.querySelectorAll('[data-node-id]')].forEach((el) => {
-      if (!this._nodes.has(el.getAttribute('data-node-id'))) el.remove();
-    });
-
+    // ── Position node boxes ──────────────────────────────────────────────────────
     this._nodes.forEach((node) => {
-      let el = this._layer.querySelector(`[data-node-id="${node.id}"]`);
-      if (!el) {
-        el = document.createElement('div');
-        el.setAttribute('data-node-id', node.id);
-        el.style.position = 'absolute';
-        el.style.display = 'flex';
-        el.style.alignItems = 'center';
-        el.style.justifyContent = 'center';
-        this._layer.appendChild(el);
-        node.el = el;
-      }
-
-      // Apply custom style, then enforce layout geometry
-      Object.assign(el.style, node.style);
-      el.style.position = 'absolute';
+      const el = node.el || this._layer.querySelector(`[data-node-id="${node.id}"]`);
+      if (!el) return;
       el.style.left = node.x + offsetX + 'px';
       el.style.top = node.y + offsetY + 'px';
-      el.style.width = nodeWidth + 'px';
-      el.style.height = nodeHeight + 'px';
-      el.style.display = 'flex';
-      el.style.alignItems = 'center';
-      el.style.justifyContent = 'center';
-
-      el.textContent = node.text;
     });
   }
 }
