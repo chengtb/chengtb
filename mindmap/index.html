@@ -126,6 +126,7 @@
     .log-entry { padding: 3px 0; border-bottom: 1px solid #f0f0f0; }
     .log-add    { color: #2e7d32; }
     .log-delete { color: #c62828; }
+    .log-click  { color: #1565c0; }
 
     /* ── canvas wrapper (holds map + zoom controls) ── */
     #map-area {
@@ -370,11 +371,16 @@
     refreshSelects();
   });
 
-  mm.on('nodeDeleted', ({ nodeIds }) => {
-    log(`nodeDeleted  ids=[${nodeIds.join(', ')}]`, 'delete');
+  mm.on('nodeDeleted', ({ nodeIds, nodes }) => {
+    const labels = nodes.map((n) => `"${n.text}"(${n.id})`).join(', ');
+    log(`nodeDeleted  ids=[${nodeIds.join(', ')}]  nodes=[${labels}]`, 'delete');
     refreshSelects();
     // Clear selection highlight if selected node was deleted
     if (nodeIds.includes(selectedId)) selectedId = null;
+  });
+
+  mm.on('nodeClicked', ({ node }) => {
+    log(`nodeClicked  id="${node.id}"  text="${node.text}"`, 'click');
   });
 
   // ── Node selection ──────────────────────────────────────────────────────────

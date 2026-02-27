@@ -10,7 +10,8 @@
  *
  * Events (register with .on(eventName, handler))
  *   'nodeAdded'   → { node }
- *   'nodeDeleted' → { nodeIds }   // the deleted node and all its descendants
+ *   'nodeDeleted' → { nodeIds, nodes }  // nodeIds: ids of deleted node + descendants; nodes: their public data snapshots
+ *   'nodeClicked' → { node }            // fired when the user clicks a node element
  *
  * Layout modes (options.layout)
  *   'directory'  (default) – vertical list with per-level indentation, L-shaped connectors
@@ -98,6 +99,16 @@ class MindMap {
     this._layer = document.createElement('div');
     this._layer.style.position = 'relative';
     c.appendChild(this._layer);
+
+    // Click delegation – emit 'nodeClicked' when any node element is clicked
+    this._layerClickHandler = (e) => {
+      const el = e.target.closest('[data-node-id]');
+      if (!el) return;
+      const id = el.getAttribute('data-node-id');
+      const node = this._nodes.get(id);
+      if (node) this._emit('nodeClicked', { node: this._publicNode(node) });
+    };
+    this._layer.addEventListener('click', this._layerClickHandler);
   }
 
   // ─── Public API ────────────────────────────────────────────────────────────
@@ -171,17 +182,28 @@ class MindMap {
       this._roots = this._roots.filter((id) => id !== nodeId);
     }
 
+    // Snapshot public data of every node in the subtree before removal
+    const deletedNodes = [];
+    const snapshotQueue = [nodeId];
+    while (snapshotQueue.length) {
+      const qid = snapshotQueue.shift();
+      const qn = this._nodes.get(qid);
+      if (!qn) continue;
+      deletedNodes.push(this._publicNode(qn));
+      qn.children.forEach((cid) => snapshotQueue.push(cid));
+    }
+
     // Collect and remove sub-tree
     const removed = [];
     this._removeSubtree(nodeId, removed);
 
     this._render();
-    this._emit('nodeDeleted', { nodeIds: removed });
+    this._emit('nodeDeleted', { nodeIds: removed, nodes: deletedNodes });
   }
 
   /**
    * Register an event handler.
-   * @param {'nodeAdded'|'nodeDeleted'} event
+   * @param {'nodeAdded'|'nodeDeleted'|'nodeClicked'} event
    * @param {function} handler
    * @returns {MindMap} this (chainable)
    */
@@ -192,7 +214,7 @@ class MindMap {
 
   /**
    * Unregister an event handler.
-   * @param {'nodeAdded'|'nodeDeleted'} event
+   * @param {'nodeAdded'|'nodeDeleted'|'nodeClicked'} event
    * @param {function} handler
    * @returns {MindMap} this (chainable)
    */

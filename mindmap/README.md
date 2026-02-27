@@ -341,6 +341,16 @@ mm.updateNode(nodeId, { state: '' });
 
 ## 7. 事件系统
 
+### 事件一览
+
+| 事件名 | 触发时机 | 回调参数 |
+|---|---|---|
+| `nodeAdded` | 节点成功添加后 | `{ node }` |
+| `nodeDeleted` | 节点（及其后代）被删除后 | `{ nodeIds, nodes }` |
+| `nodeClicked` | 用户点击某个节点元素时 | `{ node }` |
+
+所有回调中的 `node` / `nodes` 均为公开快照对象（与 `getNode()` 返回值结构相同）。与库内部状态互相独立，修改不会影响原节点。
+
 ### nodeAdded
 
 节点成功添加后触发。
@@ -354,12 +364,25 @@ mm.on('nodeAdded', ({ node }) => {
 
 ### nodeDeleted
 
-节点（及其所有后代）被删除后触发。
+节点（及其所有后代）被删除后触发。回调参数同时包含被删除节点的 ID 列表和完整数据快照，方便记录日志或撤销操作。
 
 ```js
-mm.on('nodeDeleted', ({ nodeIds }) => {
-  // nodeIds: string[] — 被删除的节点 ID 数组（含后代）
+mm.on('nodeDeleted', ({ nodeIds, nodes }) => {
+  // nodeIds: string[]     — 被删除的节点 ID 数组（含后代，BFS 顺序）
+  // nodes:   object[]     — 被删除节点的完整数据快照数组（BFS 顺序）
   console.log(`已删除 ${nodeIds.length} 个节点`);
+  nodes.forEach((n) => console.log(`  • "${n.text}" (${n.id})`));
+});
+```
+
+### nodeClicked
+
+用户点击任意节点元素时触发（通过事件委托实现，单个监听器覆盖全部节点，无需在每个节点上单独绑定）。
+
+```js
+mm.on('nodeClicked', ({ node }) => {
+  // node 为被点击节点的公开快照
+  console.log(`点击了节点 "${node.text}"，标签: [${node.tags.join(', ')}]`);
 });
 ```
 
