@@ -24,7 +24,8 @@
 6. [状态图标](#6-状态图标)
 7. [事件系统](#7-事件系统)
 8. [样式定制](#8-样式定制)
-9. [完整示例](#9-完整示例)
+9. [缩放与居中（Demo 页）](#9-缩放与居中demo-页)
+10. [完整示例](#10-完整示例)
 
 ---
 
@@ -425,7 +426,58 @@ mm.addNode(parentId, { text: '版本', tags: ['v2.0', 'stable'] });
 
 ---
 
-## 9. 完整示例
+## 9. 缩放与居中（Demo 页）
+
+`index.html` 在画布右下角提供了一组悬浮缩放控件，无需修改 `mindmap.js` 核心库即可使用。
+
+### 控件说明
+
+| 控件 | 元素 ID | 功能 |
+|---|---|---|
+| `－` 按钮 | `btn-zoom-out` | 缩小 15 %（最小 25 %）|
+| 百分比显示 | `zoom-level` | 显示当前缩放比例 |
+| `＋` 按钮 | `btn-zoom-in` | 放大 15 %（最大 300 %）|
+| `⊙` 按钮 | `btn-center` | 将内容居中显示 |
+
+### 实现原理
+
+缩放通过对 `#map-inner` 元素设置 CSS `zoom` 属性实现。与 `transform: scale()` 不同，`zoom` 属性会影响元素的布局尺寸，滚动容器的可滚动范围会随缩放比例自动同步扩展，无需额外的"占位尺寸"技巧。
+
+```js
+// 缩放核心逻辑
+function applyZoom(z) {
+  const container = document.getElementById('map-container');
+  // 记住缩放前视口中心对应的内容坐标（保持视觉中心不变）
+  const cx = (container.scrollLeft + container.clientWidth  / 2) / currentZoom;
+  const cy = (container.scrollTop  + container.clientHeight / 2) / currentZoom;
+
+  currentZoom = Math.min(3.0, Math.max(0.25, z));
+  document.getElementById('map-inner').style.zoom = currentZoom;
+  document.getElementById('zoom-level').textContent = Math.round(currentZoom * 100) + '%';
+
+  // 缩放后恢复视口中心
+  requestAnimationFrame(() => {
+    container.scrollLeft = cx * currentZoom - container.clientWidth  / 2;
+    container.scrollTop  = cy * currentZoom - container.clientHeight / 2;
+  });
+}
+
+// 居中逻辑（页面加载后自动调用一次）
+function centerContent() {
+  const container = document.getElementById('map-container');
+  const inner     = document.getElementById('map-inner');
+  container.scrollLeft = Math.max(0, (inner.offsetWidth  - container.clientWidth)  / 2);
+  container.scrollTop  = Math.max(0, (inner.offsetHeight - container.clientHeight) / 2);
+}
+```
+
+### 自动居中
+
+页面加载完成、所有初始节点渲染后，通过 `requestAnimationFrame(centerContent)` 自动将内容居中，确保用户无需手动滚动即可看到完整的思维导图。
+
+---
+
+## 10. 完整示例
 
 ```html
 <!DOCTYPE html>
