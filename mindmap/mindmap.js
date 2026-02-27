@@ -9,9 +9,10 @@
  *   getRootIds()                     → returns all root node ids
  *
  * Events (register with .on(eventName, handler))
- *   'nodeAdded'   → { node }
- *   'nodeDeleted' → { nodeIds, nodes }  // nodeIds: ids of deleted node + descendants; nodes: their public data snapshots
- *   'nodeClicked' → { node }            // fired when the user clicks a node element
+ *   'nodeAdded'    → { node }
+ *   'nodeDeleted'  → { nodeIds, nodes }  // nodeIds: ids of deleted node + descendants; nodes: their public data snapshots
+ *   'nodeClicked'  → { node }            // fired when the user clicks a node element
+ *   'nodeSelected' → { node }            // fired when selection changes; node is null when deselected
  *
  * Layout modes (options.layout)
  *   'directory'  (default) – vertical list with per-level indentation, L-shaped connectors
@@ -26,6 +27,11 @@
  *   rendered in the grandparent element of the container (the wrap area).  Keyboard shortcuts
  *   Ctrl/⌘ + Plus/Minus (zoom) and Ctrl/⌘ + 0 (center) are also registered.
  *   Public API: zoomIn(), zoomOut(), setZoom(z), getZoom(), center()
+ *
+ * Node selection
+ *   When options.selectable is true (default), clicking a node selects it (highlighted border)
+ *   and clicking the same node again deselects it.  A 'nodeSelected' event is fired on change.
+ *   Public API: selectNode(id), deselectNode(), getSelectedId()
  */
 class MindMap {
   /**
@@ -47,6 +53,8 @@ class MindMap {
    * @param {number}  [options.zoomStep=0.15]  zoom increment per step
    * @param {number}  [options.zoomMin=0.25]   minimum zoom level
    * @param {number}  [options.zoomMax=3.0]    maximum zoom level
+   * @param {boolean} [options.selectable=true]   enable click-to-select; selected node gets a highlight border
+   * @param {string}  [options.selectColor='#ff9800']  CSS color for the selection outline
    */
   constructor(container, options = {}) {
     this._container =
@@ -71,6 +79,8 @@ class MindMap {
         zoomStep: 0.15,
         zoomMin: 0.25,
         zoomMax: 3.0,
+        selectable: true,
+        selectColor: '#ff9800',
         defaultStyle: {
           backgroundColor: '#e3f2fd',
           color: '#0d47a1',
@@ -95,6 +105,7 @@ class MindMap {
     this._roots = [];
     this._handlers = {};
     this._zoom = 1.0;
+    this._selectedId = null;
 
     this._initDOM();
   }
@@ -121,13 +132,16 @@ class MindMap {
     this._layer.style.position = 'relative';
     c.appendChild(this._layer);
 
-    // Click delegation – emit 'nodeClicked' when any node element is clicked
+    // Click delegation – emit 'nodeClicked' and handle selection
     this._layerClickHandler = (e) => {
       const el = e.target.closest('[data-node-id]');
       if (!el) return;
       const id = el.getAttribute('data-node-id');
       const node = this._nodes.get(id);
-      if (node) this._emit('nodeClicked', { node: this._publicNode(node) });
+      if (node) {
+        this._emit('nodeClicked', { node: this._publicNode(node) });
+        this._toggleSelection(id);
+      }
     };
     this._layer.addEventListener('click', this._layerClickHandler);
 
@@ -453,13 +467,19 @@ class MindMap {
     const removed = [];
     this._removeSubtree(nodeId, removed);
 
+    // Auto-deselect if the selected node was part of the deleted subtree
+    if (this._selectedId && removed.includes(this._selectedId)) {
+      this._selectedId = null;
+      this._emit('nodeSelected', { node: null });
+    }
+
     this._render();
     this._emit('nodeDeleted', { nodeIds: removed, nodes: deletedNodes });
   }
 
   /**
    * Register an event handler.
-   * @param {'nodeAdded'|'nodeDeleted'|'nodeClicked'} event
+   * @param {'nodeAdded'|'nodeDeleted'|'nodeClicked'|'nodeSelected'} event
    * @param {function} handler
    * @returns {MindMap} this (chainable)
    */
@@ -470,7 +490,7 @@ class MindMap {
 
   /**
    * Unregister an event handler.
-   * @param {'nodeAdded'|'nodeDeleted'|'nodeClicked'} event
+   * @param {'nodeAdded'|'nodeDeleted'|'nodeClicked'|'nodeSelected'} event
    * @param {function} handler
    * @returns {MindMap} this (chainable)
    */
@@ -570,10 +590,85 @@ class MindMap {
     return this;
   }
 
+  /**
+   * Programmatically select a node.  Fires the 'nodeSelected' event.
+   * @param {string} nodeId
+   * @returns {MindMap} this (chainable)
+   */
+  selectNode(nodeId) {
+    if (!this._nodes.has(nodeId)) {
+      throw new Error(`Node "${nodeId}" does not exist.`);
+    }
+    this._clearSelectionStyle();
+    this._selectedId = nodeId;
+    const node = this._nodes.get(nodeId);
+    this._applySelectionStyle(node);
+    this._emit('nodeSelected', { node: this._publicNode(node) });
+    return this;
+  }
+
+  /**
+   * Deselect the currently selected node.  Fires the 'nodeSelected' event with node = null.
+   * @returns {MindMap} this (chainable)
+   */
+  deselectNode() {
+    if (this._selectedId) {
+      this._clearSelectionStyle();
+      this._selectedId = null;
+      this._emit('nodeSelected', { node: null });
+    }
+    return this;
+  }
+
+  /**
+   * Return the id of the currently selected node, or null if nothing is selected.
+   * @returns {string|null}
+   */
+  getSelectedId() {
+    return this._selectedId;
+  }
+
   // ─── Internal helpers ──────────────────────────────────────────────────────
 
   _emit(event, payload) {
     (this._handlers[event] || []).forEach((fn) => fn(payload));
+  }
+
+  /** Remove the selection outline from the currently selected node element. @private */
+  _clearSelectionStyle() {
+    if (!this._selectedId) return;
+    const node = this._nodes.get(this._selectedId);
+    if (node && node.el) {
+      node.el.style.outline = '';
+      node.el.style.outlineOffset = '';
+    }
+  }
+
+  /** Apply the selection outline to a node element. @private */
+  _applySelectionStyle(node) {
+    if (!node || !node.el) return;
+    node.el.style.outline = `3px solid ${this._opts.selectColor}`;
+    node.el.style.outlineOffset = '2px';
+  }
+
+  /**
+   * Toggle the selection for the given node id (called on click).
+   * Clicking the already-selected node deselects it.
+   * @private
+   */
+  _toggleSelection(id) {
+    if (!this._opts.selectable) return;
+    if (id === this._selectedId) {
+      this._clearSelectionStyle();
+      this._selectedId = null;
+      this._emit('nodeSelected', { node: null });
+    } else {
+      this._clearSelectionStyle();
+      this._selectedId = id;
+      const node = this._nodes.get(id);
+      this._applySelectionStyle(node);
+      this._emit('nodeSelected', { node: this._publicNode(node) });
+    }
   }
 
   _publicNode(node) {
@@ -948,6 +1043,12 @@ class MindMap {
       el.style.left = node.x + offsetX + 'px';
       el.style.top = node.y + offsetY + 'px';
     });
+
+    // ── Re-apply selection outline (overridden by node style reset above) ────────
+    if (this._opts.selectable && this._selectedId) {
+      const selNode = this._nodes.get(this._selectedId);
+      this._applySelectionStyle(selNode);
+    }
   }
 }
 

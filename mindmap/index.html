@@ -154,11 +154,6 @@
       min-height: 100%;
     }
 
-    /* ── node selection highlight ── */
-    .mindmap-node-selected {
-      outline: 3px solid #ff9800 !important;
-      outline-offset: 2px;
-    }
   </style>
 </head>
 <body>
@@ -294,35 +289,16 @@
     const labels = nodes.map((n) => `"${n.text}"(${n.id})`).join(', ');
     log(`nodeDeleted  ids=[${nodeIds.join(', ')}]  nodes=[${labels}]`, 'delete');
     refreshSelects();
-    // Clear selection highlight if selected node was deleted
-    if (nodeIds.includes(selectedId)) selectedId = null;
   });
 
   mm.on('nodeClicked', ({ node }) => {
     log(`nodeClicked  id="${node.id}"  text="${node.text}"`, 'click');
   });
 
-  // ── Node selection ──────────────────────────────────────────────────────────
-  let selectedId = null;
-
-  document.getElementById('map-inner').addEventListener('click', (e) => {
-    const el = e.target.closest('[data-node-id]');
-    if (!el) return;
-    const id = el.getAttribute('data-node-id');
-
-    // Deselect previous
-    document.querySelectorAll('[data-node-id]').forEach((n) =>
-      n.classList.remove('mindmap-node-selected'),
-    );
-
-    if (id === selectedId) {
-      selectedId = null;
-    } else {
-      selectedId = id;
-      el.classList.add('mindmap-node-selected');
-      // Auto-fill the parent selector
-      document.getElementById('sel-parent').value = id;
-      document.getElementById('sel-delete').value = id;
+  mm.on('nodeSelected', ({ node }) => {
+    if (node) {
+      document.getElementById('sel-parent').value = node.id;
+      document.getElementById('sel-delete').value = node.id;
     }
   });
 

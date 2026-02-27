@@ -17,6 +17,7 @@
    - [getRootIds](#getrootids)
    - [on / off](#on--off)
    - [zoomIn / zoomOut / setZoom / getZoom / center](#zoomin--zoomout--setzoom--getzoom--center)
+   - [selectNode / deselectNode / getSelectedId](#selectnode--deselectnode--getselectedid)
 4. [节点数据字段](#4-节点数据字段)
 5. [布局模式](#5-布局模式)
    - [directory（默认）](#directory默认)
@@ -83,6 +84,8 @@ new MindMap(container, options?)
 | `zoomStep`  | `number`  | `0.15` | 每次缩放的步长 |
 | `zoomMin`   | `number`  | `0.25` | 最小缩放倍率 |
 | `zoomMax`   | `number`  | `3.0`  | 最大缩放倍率 |
+| `selectable` | `boolean` | `true` | 启用点击选中节点（高亮边框）；再次点击同一节点取消选中。设为 `false` 可禁用。|
+| `selectColor` | `string` | `'#ff9800'` | 选中节点的外边框颜色 |
 | `defaultStyle` | `object` | 见下方 | 所有节点共用的默认 CSS 属性 |
 
 #### defaultStyle 默认值
@@ -245,6 +248,30 @@ mm.on('nodeAdded', onAdded);
 
 // 稍后取消监听
 mm.off('nodeAdded', onAdded);
+```
+
+---
+
+### selectNode / deselectNode / getSelectedId
+
+当 `options.selectable` 为 `true`（默认）时，点击节点会自动触发选中/取消选中，同时触发 `nodeSelected` 事件。也可通过以下公共方法以编程方式控制：
+
+```js
+mm.selectNode(nodeId)   // 选中指定节点（触发 nodeSelected 事件），可链式调用
+mm.deselectNode()       // 取消选中（触发 nodeSelected 事件，node=null），可链式调用
+mm.getSelectedId()      // 返回当前选中节点 ID，未选中时返回 null
+```
+
+**`nodeSelected` 事件**：
+
+```js
+mm.on('nodeSelected', ({ node }) => {
+  if (node) {
+    console.log('已选中:', node.id, node.text);
+  } else {
+    console.log('已取消选中');
+  }
+});
 ```
 
 ---
