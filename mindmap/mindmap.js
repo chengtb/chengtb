@@ -487,13 +487,20 @@ class MindMap {
       // Text line (flex row: optional state icon + text)
       el.textContent = '';
       const textEl = document.createElement('div');
-      textEl.style.cssText = 'display:flex;align-items:center;gap:4px;';
-      const stateIcons = { success: { char: '✓', color: '#4caf50' }, warn: { char: '!', color: '#ff9800' } };
+      textEl.style.cssText = 'display:flex;align-items:center;gap:6px;';
+      const stateIcons = {
+        success: { char: '✓', color: '#fff', bg: '#43a047' },
+        warn: { char: '!', color: '#fff', bg: '#fb8c00' },
+      };
       const iconDef = stateIcons[node.state];
       if (iconDef) {
         const iconEl = document.createElement('span');
         iconEl.textContent = iconDef.char;
-        iconEl.style.cssText = `color:${iconDef.color};font-weight:bold;flex-shrink:0;`;
+        iconEl.style.cssText =
+          `display:inline-flex;align-items:center;justify-content:center;` +
+          `width:18px;height:18px;border-radius:50%;` +
+          `background:${iconDef.bg};color:${iconDef.color};` +
+          `font-size:13px;font-weight:bold;flex-shrink:0;line-height:1;`;
         textEl.appendChild(iconEl);
       }
       const textSpan = document.createElement('span');
