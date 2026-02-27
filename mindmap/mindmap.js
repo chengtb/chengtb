@@ -127,6 +127,7 @@ class MindMap {
     const node = {
       id,
       text: data.text != null ? String(data.text) : 'New Node',
+      tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
       layoutType: data.layoutType != null ? String(data.layoutType) : null,
       style: Object.assign({}, this._opts.defaultStyle, style),
       parentId: parentId,
@@ -230,15 +231,16 @@ class MindMap {
   }
 
   /**
-   * Update a node's text and/or style.
+   * Update a node's text, tags and/or style.
    * @param {string}  nodeId
-   * @param {object}  [data]   { text? }
+   * @param {object}  [data]   { text?, tags? }
    * @param {object}  [style]  CSS overrides (merged with existing)
    */
   updateNode(nodeId, data = {}, style = {}) {
     const node = this._nodes.get(nodeId);
     if (!node) throw new Error(`Node "${nodeId}" does not exist.`);
     if (data.text != null) node.text = String(data.text);
+    if (data.tags != null) node.tags = Array.isArray(data.tags) ? data.tags.map(String) : [];
     if (style) node.style = Object.assign({}, node.style, style);
     this._render();
   }
@@ -253,6 +255,7 @@ class MindMap {
     return {
       id: node.id,
       text: node.text,
+      tags: node.tags.slice(),
       layoutType: node.layoutType,
       style: Object.assign({}, node.style),
       parentId: node.parentId,
@@ -474,10 +477,30 @@ class MindMap {
       el.style.height = 'auto';
       el.style.minHeight = nodeHeight + 'px';
       el.style.display = 'flex';
-      el.style.alignItems = 'center';
+      el.style.flexDirection = 'column';
+      el.style.alignItems = 'flex-start';
       el.style.justifyContent = 'center';
 
-      el.textContent = node.text;
+      // Text line
+      el.textContent = '';
+      const textEl = document.createElement('div');
+      textEl.textContent = node.text;
+      el.appendChild(textEl);
+
+      // Tags row (rendered below the text if any tags exist)
+      if (node.tags && node.tags.length) {
+        const tagsEl = document.createElement('div');
+        tagsEl.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;margin-top:3px;';
+        node.tags.forEach((tag) => {
+          const span = document.createElement('span');
+          span.textContent = tag;
+          span.style.cssText =
+            'display:inline-block;padding:1px 6px;border-radius:10px;' +
+            'font-size:11px;background:rgba(0,0,0,0.12);line-height:1.4;';
+          tagsEl.appendChild(span);
+        });
+        el.appendChild(tagsEl);
+      }
     });
 
     // ── Measure actual rendered widths and heights ──────────────────────────────

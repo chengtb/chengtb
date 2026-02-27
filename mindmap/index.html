@@ -203,6 +203,11 @@
       <input id="inp-fs" type="number" value="14" min="8" max="32" />
     </div>
 
+    <div class="form-group">
+      <label>标签（逗号分隔）</label>
+      <input id="inp-tags" type="text" placeholder="tag1, tag2, ..." />
+    </div>
+
     <button class="btn-add" id="btn-add">＋ 添加节点</button>
 
     <hr />
@@ -358,6 +363,8 @@
     const fg      = document.getElementById('inp-fg').value;
     const radius  = document.getElementById('inp-radius').value + 'px';
     const fs      = document.getElementById('inp-fs').value + 'px';
+    const tagsRaw = document.getElementById('inp-tags').value;
+    const tags    = tagsRaw.split(',').map((t) => t.trim()).filter((t) => t.length > 0);
 
     const style = {
       backgroundColor: bg,
@@ -368,7 +375,7 @@
     };
 
     try {
-      const newId = mm.addNode(parentId, { text }, style);
+      const newId = mm.addNode(parentId, { text, tags }, style);
       // Auto-select new node
       document.getElementById('sel-parent').value = newId;
       document.getElementById('sel-delete').value = newId;
@@ -422,20 +429,20 @@
     fontSize: '12px',
   };
 
-  const rootId = mm.addNode(null, { id: 'root', text: '组织结构图', layoutType: '组织结构' }, rootStyle);
+  const rootId = mm.addNode(null, { id: 'root', text: '组织结构图', layoutType: '组织结构', tags: ['v2.0', 'main'] }, rootStyle);
 
-  const srcId  = mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构' },   folderStyle);
-  mm.addNode(srcId,  { text: '目录组织图', layoutType: '目录组织结构' },   fileStyle);
+  const srcId  = mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构', tags: ['src'] },   folderStyle);
+  mm.addNode(srcId,  { text: '目录组织图', layoutType: '目录组织结构', tags: ['js', 'ts'] },   fileStyle);
   mm.addNode(srcId,  { text: '目录组织图', layoutType: '目录组织结构' },     fileStyle);
-  const compId = mm.addNode(srcId, { text: '目录组织图', layoutType: '目录组织结构' }, folderStyle);
+  const compId = mm.addNode(srcId, { text: '目录组织图', layoutType: '目录组织结构', tags: ['components'] }, folderStyle);
   mm.addNode(compId, { text: '目录组织图', layoutType: '目录组织结构' }, fileStyle);
   mm.addNode(compId, { text: '目录组织图', layoutType: '目录组织结构' }, fileStyle);
 
-  const docsId = mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构' },  folderStyle);
+  const docsId = mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构', tags: ['docs'] },  folderStyle);
   mm.addNode(docsId, { text: '目录组织图', layoutType: '目录组织结构' }, fileStyle);
   mm.addNode(docsId, { text: '目录组织图', layoutType: '目录组织结构' },    fileStyle);
 
-  const testId = mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构' }, folderStyle);
+  const testId = mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构', tags: ['test', 'ci'] }, folderStyle);
   mm.addNode(testId, { text: '目录组织图', layoutType: '目录组织结构' },  fileStyle);
   mm.addNode(testId, { text: '目录组织图', layoutType: '目录组织结构' },   fileStyle);
 
