@@ -10,17 +10,23 @@
  * Events (register with .on(eventName, handler))
  *   'nodeAdded'   → { node }
  *   'nodeDeleted' → { nodeIds }   // the deleted node and all its descendants
+ *
+ * Layout modes (options.layout)
+ *   'directory'  (default) – vertical list with per-level indentation, L-shaped connectors
+ *   'tree'                 – top-down tree with horizontal sibling spread, bezier connectors
  */
 class MindMap {
   /**
    * @param {string|HTMLElement} container  CSS selector or DOM element
    * @param {object}             [options]
-   * @param {number}  [options.nodeWidth=140]
-   * @param {number}  [options.nodeHeight=44]
-   * @param {number}  [options.hSpacing=48]   horizontal gap between sibling sub-trees
-   * @param {number}  [options.vSpacing=64]   vertical gap between parent and children
-   * @param {string}  [options.lineColor='#b0bec5']
-   * @param {number}  [options.lineWidth=2]
+   * @param {string}  [options.layout='directory']  'directory' | 'tree'
+   * @param {number}  [options.nodeWidth=220]
+   * @param {number}  [options.nodeHeight=32]
+   * @param {number}  [options.indentWidth=28]  horizontal indent per level (directory mode)
+   * @param {number}  [options.hSpacing=48]     horizontal gap between sub-trees (tree mode)
+   * @param {number}  [options.vSpacing=6]      vertical gap between rows
+   * @param {string}  [options.lineColor='#90a4ae']
+   * @param {number}  [options.lineWidth=1.5]
    * @param {object}  [options.defaultStyle]  CSS properties applied to every node
    */
   constructor(container, options = {}) {
@@ -31,22 +37,24 @@ class MindMap {
 
     this._opts = Object.assign(
       {
-        nodeWidth: 140,
-        nodeHeight: 44,
+        layout: 'directory',
+        nodeWidth: 220,
+        nodeHeight: 32,
+        indentWidth: 28,
         hSpacing: 48,
-        vSpacing: 64,
-        lineColor: '#b0bec5',
-        lineWidth: 2,
+        vSpacing: 6,
+        lineColor: '#90a4ae',
+        lineWidth: 1.5,
         defaultStyle: {
-          backgroundColor: '#4285f4',
-          color: '#ffffff',
-          borderRadius: '6px',
-          fontSize: '14px',
-          fontFamily: 'Arial, sans-serif',
-          border: '2px solid #2b5fc7',
-          padding: '6px 12px',
+          backgroundColor: '#e3f2fd',
+          color: '#0d47a1',
+          borderRadius: '3px',
+          fontSize: '13px',
+          fontFamily: 'Consolas, "Courier New", monospace',
+          border: '1px solid #90caf9',
+          padding: '4px 10px',
           boxSizing: 'border-box',
-          textAlign: 'center',
+          textAlign: 'left',
           cursor: 'pointer',
           userSelect: 'none',
           whiteSpace: 'nowrap',
@@ -253,11 +261,42 @@ class MindMap {
   // ─── Layout ───────────────────────────────────────────────────────────────
 
   /**
-   * Compute sub-tree widths (bottom-up) and node positions (top-down).
+   * Compute node positions. Dispatches to the appropriate layout algorithm.
    */
   _computeLayout() {
     if (!this._rootId) return;
+    if (this._opts.layout === 'directory') {
+      this._computeLayoutDirectory();
+    } else {
+      this._computeLayoutTree();
+    }
+  }
 
+  /**
+   * Directory layout: depth-first traversal assigns each node a sequential
+   * row (y) and an indented column (x = depth × indentWidth).
+   */
+  _computeLayoutDirectory() {
+    const { nodeHeight, vSpacing } = this._opts;
+    const indentWidth = Math.max(1, this._opts.indentWidth);
+    let row = 0;
+
+    const traverse = (id, depth) => {
+      const node = this._nodes.get(id);
+      node.x = depth * indentWidth;
+      node.y = row * (nodeHeight + vSpacing);
+      row++;
+      node.children.forEach((cid) => traverse(cid, depth + 1));
+    };
+
+    traverse(this._rootId, 0);
+  }
+
+  /**
+   * Tree layout: compute sub-tree widths (bottom-up) then assign positions
+   * (top-down) so children fan out horizontally below their parent.
+   */
+  _computeLayoutTree() {
     const { nodeWidth, nodeHeight, hSpacing, vSpacing } = this._opts;
     const subtreeW = new Map();
 
@@ -340,25 +379,41 @@ class MindMap {
 
     // ── Draw connectors ──────────────────────────────────────────────────────
     this._svg.innerHTML = '';
+    const isDirectory = this._opts.layout === 'directory';
+    const indentWidth = Math.max(1, this._opts.indentWidth);
+
     this._nodes.forEach((node) => {
       if (node.parentId === null) return;
       const parent = this._nodes.get(node.parentId);
       if (!parent) return;
 
-      const x1 = parent.x + nodeWidth / 2 + offsetX;
-      const y1 = parent.y + nodeHeight + offsetY;
-      const x2 = node.x + nodeWidth / 2 + offsetX;
-      const y2 = node.y + offsetY;
-      const midY = (y1 + y2) / 2;
-
       const path = document.createElementNS(
         'http://www.w3.org/2000/svg',
         'path',
       );
-      path.setAttribute(
-        'd',
-        `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`,
-      );
+
+      if (isDirectory) {
+        // Orthogonal L-shaped connector for directory mode:
+        // vertical spine goes from parent's bottom-center down to child's row,
+        // then a horizontal stub runs right to the child's left edge.
+        const xSpine = node.x - indentWidth / 2 + offsetX;
+        const yTop = parent.y + nodeHeight / 2 + offsetY;
+        const yBot = node.y + nodeHeight / 2 + offsetY;
+        const xEnd = node.x + offsetX;
+        path.setAttribute('d', `M ${xSpine} ${yTop} V ${yBot} H ${xEnd}`);
+      } else {
+        // Smooth bezier connector for tree mode
+        const x1 = parent.x + nodeWidth / 2 + offsetX;
+        const y1 = parent.y + nodeHeight + offsetY;
+        const x2 = node.x + nodeWidth / 2 + offsetX;
+        const y2 = node.y + offsetY;
+        const midY = (y1 + y2) / 2;
+        path.setAttribute(
+          'd',
+          `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`,
+        );
+      }
+
       path.setAttribute('fill', 'none');
       path.setAttribute('stroke', lineColor);
       path.setAttribute('stroke-width', lineWidth);

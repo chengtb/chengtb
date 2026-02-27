@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>树状思维导图 – MindMap Demo</title>
+  <title>目录组织结构 – MindMap Demo</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -152,7 +152,7 @@
 </head>
 <body>
 
-<header>🧠 树状思维导图 – MindMap</header>
+<header>📁 目录组织结构 – MindMap</header>
 
 <div class="main">
 
@@ -177,16 +177,16 @@
     <div class="form-group">
       <label>背景色</label>
       <div class="color-row">
-        <input id="inp-bg" type="color" value="#4285f4" />
-        <span id="lbl-bg">#4285f4</span>
+        <input id="inp-bg" type="color" value="#e3f2fd" />
+        <span id="lbl-bg">#e3f2fd</span>
       </div>
     </div>
 
     <div class="form-group">
       <label>文字颜色</label>
       <div class="color-row">
-        <input id="inp-fg" type="color" value="#ffffff" />
-        <span id="lbl-fg">#ffffff</span>
+        <input id="inp-fg" type="color" value="#0d47a1" />
+        <span id="lbl-fg">#0d47a1</span>
       </div>
     </div>
 
@@ -233,28 +233,28 @@
 <script>
   // ── Instantiate ─────────────────────────────────────────────────────────────
   const mm = new MindMap('#map-inner', {
-    nodeWidth: 140,
-    nodeHeight: 44,
-    hSpacing: 52,
-    vSpacing: 70,
-    lineColor: '#7986cb',
-    lineWidth: 2,
+    layout: 'directory',
+    nodeWidth: 220,
+    nodeHeight: 32,
+    indentWidth: 28,
+    vSpacing: 6,
+    lineColor: '#90a4ae',
+    lineWidth: 1.5,
     defaultStyle: {
-      backgroundColor: '#4285f4',
-      color: '#ffffff',
-      borderRadius: '6px',
-      fontSize: '14px',
-      fontFamily: 'Arial, sans-serif',
-      border: '2px solid #2b5fc7',
-      padding: '6px 12px',
+      backgroundColor: '#e3f2fd',
+      color: '#0d47a1',
+      borderRadius: '3px',
+      fontSize: '13px',
+      fontFamily: 'Consolas, "Courier New", monospace',
+      border: '1px solid #90caf9',
+      padding: '4px 10px',
       boxSizing: 'border-box',
-      textAlign: 'center',
+      textAlign: 'left',
       cursor: 'pointer',
       userSelect: 'none',
       whiteSpace: 'nowrap',
       overflow: 'hidden',
       textOverflow: 'ellipsis',
-      boxShadow: '0 2px 6px rgba(0,0,0,.25)',
     },
   });
 
@@ -404,29 +404,48 @@
     return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
   }
 
-  // ── Seed an initial tree ────────────────────────────────────────────────────
-  const rootId = mm.addNode(null, { id: 'root', text: '思维导图' }, {
-    backgroundColor: '#1a237e',
+  // ── Seed an initial directory tree ──────────────────────────────────────────
+  const rootStyle = {
+    backgroundColor: '#1565c0',
     color: '#fff',
-    border: '2px solid #0d1257',
-    fontSize: '15px',
+    border: '1px solid #0d47a1',
+    fontSize: '14px',
     fontWeight: 'bold',
-  });
+    borderRadius: '4px',
+  };
+  const folderStyle = {
+    backgroundColor: '#fff8e1',
+    color: '#5d4037',
+    border: '1px solid #ffe082',
+    borderRadius: '3px',
+  };
+  const fileStyle = {
+    backgroundColor: '#f1f8e9',
+    color: '#33691e',
+    border: '1px solid #c5e1a5',
+    borderRadius: '3px',
+    fontSize: '12px',
+  };
 
-  const ideas = [
-    { text: '想法 A', bg: '#43a047', border: '#2e7d32' },
-    { text: '想法 B', bg: '#fb8c00', border: '#e65100' },
-    { text: '想法 C', bg: '#8e24aa', border: '#6a1b9a' },
-  ];
-  ideas.forEach(({ text, bg, border }) => {
-    const pid = mm.addNode(rootId, { text }, {
-      backgroundColor: bg,
-      border: `2px solid ${border}`,
-      color: '#fff',
-    });
-    mm.addNode(pid, { text: `${text}-1` }, { backgroundColor: bg, border: `2px solid ${border}`, color: '#fff', fontSize: '12px' });
-    mm.addNode(pid, { text: `${text}-2` }, { backgroundColor: bg, border: `2px solid ${border}`, color: '#fff', fontSize: '12px' });
-  });
+  const rootId = mm.addNode(null, { id: 'root', text: '📁 my-project' }, rootStyle);
+
+  const srcId  = mm.addNode(rootId, { text: '📁 src' },   folderStyle);
+  mm.addNode(srcId,  { text: '📄 index.js' },   fileStyle);
+  mm.addNode(srcId,  { text: '📄 app.js' },     fileStyle);
+  const compId = mm.addNode(srcId, { text: '📁 components' }, folderStyle);
+  mm.addNode(compId, { text: '📄 Header.vue' }, fileStyle);
+  mm.addNode(compId, { text: '📄 Footer.vue' }, fileStyle);
+
+  const docsId = mm.addNode(rootId, { text: '📁 docs' },  folderStyle);
+  mm.addNode(docsId, { text: '📄 README.md' }, fileStyle);
+  mm.addNode(docsId, { text: '📄 API.md' },    fileStyle);
+
+  const testId = mm.addNode(rootId, { text: '📁 tests' }, folderStyle);
+  mm.addNode(testId, { text: '📄 unit.test.js' },  fileStyle);
+  mm.addNode(testId, { text: '📄 e2e.test.js' },   fileStyle);
+
+  mm.addNode(rootId, { text: '📄 package.json' },  fileStyle);
+  mm.addNode(rootId, { text: '📄 .gitignore' },     fileStyle);
 
   refreshSelects();
 </script>
