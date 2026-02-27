@@ -128,6 +128,7 @@ class MindMap {
       id,
       text: data.text != null ? String(data.text) : 'New Node',
       tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
+      state: data.state != null ? String(data.state) : '',
       layoutType: data.layoutType != null ? String(data.layoutType) : null,
       style: Object.assign({}, this._opts.defaultStyle, style),
       parentId: parentId,
@@ -231,9 +232,9 @@ class MindMap {
   }
 
   /**
-   * Update a node's text, tags and/or style.
+   * Update a node's text, tags, state and/or style.
    * @param {string}  nodeId
-   * @param {object}  [data]   { text?, tags? }
+   * @param {object}  [data]   { text?, tags?, state? }
    * @param {object}  [style]  CSS overrides (merged with existing)
    */
   updateNode(nodeId, data = {}, style = {}) {
@@ -241,6 +242,7 @@ class MindMap {
     if (!node) throw new Error(`Node "${nodeId}" does not exist.`);
     if (data.text != null) node.text = String(data.text);
     if (data.tags != null) node.tags = Array.isArray(data.tags) ? data.tags.map(String) : [];
+    if (data.state != null) node.state = String(data.state);
     if (style) node.style = Object.assign({}, node.style, style);
     this._render();
   }
@@ -256,6 +258,7 @@ class MindMap {
       id: node.id,
       text: node.text,
       tags: node.tags.slice(),
+      state: node.state,
       layoutType: node.layoutType,
       style: Object.assign({}, node.style),
       parentId: node.parentId,
@@ -481,10 +484,21 @@ class MindMap {
       el.style.alignItems = 'flex-start';
       el.style.justifyContent = 'center';
 
-      // Text line
+      // Text line (flex row: optional state icon + text)
       el.textContent = '';
       const textEl = document.createElement('div');
-      textEl.textContent = node.text;
+      textEl.style.cssText = 'display:flex;align-items:center;gap:4px;';
+      const stateIcons = { success: { char: '✓', color: '#4caf50' }, warn: { char: '!', color: '#ff9800' } };
+      const iconDef = stateIcons[node.state];
+      if (iconDef) {
+        const iconEl = document.createElement('span');
+        iconEl.textContent = iconDef.char;
+        iconEl.style.cssText = `color:${iconDef.color};font-weight:bold;flex-shrink:0;`;
+        textEl.appendChild(iconEl);
+      }
+      const textSpan = document.createElement('span');
+      textSpan.textContent = node.text;
+      textEl.appendChild(textSpan);
       el.appendChild(textEl);
 
       // Tags row (rendered below the text if any tags exist)
