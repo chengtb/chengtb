@@ -1,11 +1,12 @@
 /**
- * MindMap – a lightweight tree-shaped mind-map library.
+ * MindMap – a lightweight mind-map library that supports multiple independent trees.
  *
  * Supported operations
  *   addNode(parentId, data, style?)  → returns new node id
  *   deleteNode(nodeId)
  *   updateNode(nodeId, data, style?) → update text / style of an existing node
- *   getRootId()                      → returns the current root node id (or null)
+ *   getRootId()                      → returns the first root node id (or null)
+ *   getRootIds()                     → returns all root node ids
  *
  * Events (register with .on(eventName, handler))
  *   'nodeAdded'   → { node }
@@ -26,6 +27,7 @@ class MindMap {
    * @param {number}  [options.hSpacing=48]     horizontal gap between sub-trees (tree mode)
    * @param {number}  [options.vSpacing=6]      vertical gap between rows
    * @param {number}  [options.rootChildVSpacing=50]  vertical gap between root and its direct children (mixed layout)
+   * @param {number}  [options.rootGroupVSpacing=40]  vertical gap between independent root trees
    * @param {string}  [options.lineColor='#90a4ae']
    * @param {number}  [options.lineWidth=1.5]
    * @param {object}  [options.defaultStyle]  CSS properties applied to every node
@@ -45,6 +47,7 @@ class MindMap {
         hSpacing: 48,
         vSpacing: 6,
         rootChildVSpacing: 50,
+        rootGroupVSpacing: 40,
         lineColor: '#90a4ae',
         lineWidth: 1.5,
         defaultStyle: {
@@ -68,7 +71,7 @@ class MindMap {
 
     /** @type {Map<string, MindMapNode>} */
     this._nodes = new Map();
-    this._rootId = null;
+    this._roots = [];
     this._handlers = {};
 
     this._initDOM();
@@ -101,15 +104,12 @@ class MindMap {
 
   /**
    * Add a node to the tree.
-   * @param {string|null} parentId  null → becomes the root
+   * @param {string|null} parentId  null → creates a new root node
    * @param {object}      data      { id?, text }
    * @param {object}      [style]   CSS overrides for this node
    * @returns {string}  The new node's id
    */
   addNode(parentId, data = {}, style = {}) {
-    if (parentId === null && this._rootId !== null) {
-      throw new Error('A root node already exists. Provide a parentId.');
-    }
     if (parentId !== null && !this._nodes.has(parentId)) {
       throw new Error(`Parent node "${parentId}" does not exist.`);
     }
@@ -139,7 +139,7 @@ class MindMap {
     this._nodes.set(id, node);
 
     if (parentId === null) {
-      this._rootId = id;
+      this._roots.push(id);
     } else {
       this._nodes.get(parentId).children.push(id);
     }
@@ -165,8 +165,8 @@ class MindMap {
       const parent = this._nodes.get(node.parentId);
       parent.children = parent.children.filter((id) => id !== nodeId);
     } else {
-      // Deleting root
-      this._rootId = null;
+      // Deleting a root
+      this._roots = this._roots.filter((id) => id !== nodeId);
     }
 
     // Collect and remove sub-tree
@@ -214,11 +214,19 @@ class MindMap {
   }
 
   /**
-   * Return the id of the current root node, or null if the tree is empty.
+   * Return the id of the first root node, or null if the map is empty.
    * @returns {string|null}
    */
   getRootId() {
-    return this._rootId;
+    return this._roots[0] || null;
+  }
+
+  /**
+   * Return the ids of all root nodes (independent trees).
+   * @returns {string[]}
+   */
+  getRootIds() {
+    return this._roots.slice();
   }
 
   /**
@@ -264,25 +272,47 @@ class MindMap {
   // ─── Layout ───────────────────────────────────────────────────────────────
 
   /**
-   * Compute node positions. Dispatches to the appropriate layout algorithm.
+   * Compute node positions for all root trees, stacked vertically.
    */
   _computeLayout() {
-    if (!this._rootId) return;
-    const rootNode = this._nodes.get(this._rootId);
-    if (rootNode && rootNode.layoutType === '组织结构') {
-      this._computeLayoutMixed();
-    } else if (this._opts.layout === 'directory') {
-      this._computeLayoutDirectory();
-    } else {
-      this._computeLayoutTree();
-    }
+    if (!this._roots.length) return;
+    const rootGroupVSpacing = this._opts.rootGroupVSpacing;
+    let groupOffsetY = 0;
+
+    this._roots.forEach((rootId) => {
+      const rootNode = this._nodes.get(rootId);
+      // Run layout for this subtree (y-values start at 0)
+      if (rootNode && rootNode.layoutType === '组织结构') {
+        this._computeLayoutMixed(rootId);
+      } else if (this._opts.layout === 'directory') {
+        this._computeLayoutDirectory(rootId);
+      } else {
+        this._computeLayoutTree(rootId);
+      }
+
+      // Shift all nodes in this subtree down by groupOffsetY and find new bottom
+      let maxBottom = 0;
+      this._visitSubtree(rootId, (n) => {
+        n.y += groupOffsetY;
+        maxBottom = Math.max(maxBottom, n.y + (n.h || this._opts.nodeHeight));
+      });
+      groupOffsetY = maxBottom + rootGroupVSpacing;
+    });
+  }
+
+  /** Depth-first traversal of a subtree rooted at rootId. */
+  _visitSubtree(rootId, fn) {
+    const node = this._nodes.get(rootId);
+    if (!node) return;
+    fn(node);
+    node.children.forEach((cid) => this._visitSubtree(cid, fn));
   }
 
   /**
    * Directory layout: depth-first traversal assigns each node a sequential
    * row (y) and an indented column (x = depth × indentWidth).
    */
-  _computeLayoutDirectory() {
+  _computeLayoutDirectory(rootId) {
     const { vSpacing } = this._opts;
     const indentWidth = Math.max(1, this._opts.indentWidth);
     let curY = 0;
@@ -295,14 +325,14 @@ class MindMap {
       node.children.forEach((cid) => traverse(cid, depth + 1));
     };
 
-    traverse(this._rootId, 0);
+    traverse(rootId, 0);
   }
 
   /**
    * Tree layout: compute sub-tree widths (bottom-up) then assign positions
    * (top-down) so children fan out horizontally below their parent.
    */
-  _computeLayoutTree() {
+  _computeLayoutTree(rootId) {
     const { nodeHeight, hSpacing, vSpacing } = this._opts;
     const subtreeW = new Map();
 
@@ -321,7 +351,7 @@ class MindMap {
       return w;
     };
 
-    measureWidth(this._rootId);
+    measureWidth(rootId);
 
     const position = (id, cx, y) => {
       const node = this._nodes.get(id);
@@ -343,7 +373,7 @@ class MindMap {
       });
     };
 
-    position(this._rootId, subtreeW.get(this._rootId) / 2, 0);
+    position(rootId, subtreeW.get(rootId) / 2, 0);
   }
 
   /**
@@ -351,12 +381,13 @@ class MindMap {
    * with bezier connectors), while every non-root node lays its own children out
    * vertically in directory style (indented list, L-shaped connectors).
    */
-  _computeLayoutMixed() {
+  _computeLayoutMixed(rootId) {
     const { nodeHeight, hSpacing, vSpacing } = this._opts;
     const indentWidth = Math.max(1, this._opts.indentWidth);
-    const rootNode = this._nodes.get(this._rootId);
+    const rootNode = this._nodes.get(rootId);
 
-    if (!rootNode || !rootNode.children.length) {
+    if (!rootNode) return;
+    if (!rootNode.children.length) {
       rootNode.x = 0;
       rootNode.y = 0;
       return;
@@ -408,7 +439,7 @@ class MindMap {
   // ─── Rendering ────────────────────────────────────────────────────────────
 
   _render() {
-    if (!this._rootId) {
+    if (!this._roots.length) {
       this._svg.innerHTML = '';
       // Remove all node elements
       [...this._layer.querySelectorAll('[data-node-id]')].forEach((el) =>
@@ -483,15 +514,21 @@ class MindMap {
 
     // ── Draw connectors ──────────────────────────────────────────────────────────
     this._svg.innerHTML = '';
-    const rootNode = this._rootId ? this._nodes.get(this._rootId) : null;
-    const isMixed = !!(rootNode && rootNode.layoutType === '组织结构');
-    const isDirectory = this._opts.layout === 'directory' && !isMixed;
+    // Precompute nodeId → rootNode mapping for per-connection connector style
+    const nodeToRoot = new Map();
+    this._roots.forEach((rootId) => {
+      this._visitSubtree(rootId, (n) => nodeToRoot.set(n.id, this._nodes.get(rootId)));
+    });
     const indentWidth = Math.max(1, this._opts.indentWidth);
 
     this._nodes.forEach((node) => {
       if (node.parentId === null) return;
       const parent = this._nodes.get(node.parentId);
       if (!parent) return;
+
+      const rootNode = nodeToRoot.get(node.id);
+      const isMixed = !!(rootNode && rootNode.layoutType === '组织结构');
+      const isDirectory = this._opts.layout === 'directory' && !isMixed;
 
       const path = document.createElementNS(
         'http://www.w3.org/2000/svg',

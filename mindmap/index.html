@@ -308,25 +308,24 @@
     parentSel.innerHTML = '<option value="">-- 无（创建根节点）--</option>';
     deleteSel.innerHTML = '<option value="">-- 选择节点 --</option>';
 
-    // Walk the tree in BFS order for display
-    const rootId = mm.getRootId();
-    if (!rootId) return;
+    // Walk all root trees in BFS order for display
+    mm.getRootIds().forEach((rootId) => {
+      const queue = [{ id: rootId, depth: 0 }];
+      while (queue.length) {
+        const { id, depth } = queue.shift();
+        const node = mm.getNode(id);
+        if (!node) continue;
+        const indent = '　'.repeat(depth);
+        const label = `${indent}${node.text} (${id})`;
 
-    const queue = [{ id: rootId, depth: 0 }];
-    while (queue.length) {
-      const { id, depth } = queue.shift();
-      const node = mm.getNode(id);
-      if (!node) continue;
-      const indent = '　'.repeat(depth);
-      const label = `${indent}${node.text} (${id})`;
+        const opt1 = new Option(label, id);
+        const opt2 = new Option(label, id);
+        parentSel.appendChild(opt1);
+        deleteSel.appendChild(opt2);
 
-      const opt1 = new Option(label, id);
-      const opt2 = new Option(label, id);
-      parentSel.appendChild(opt1);
-      deleteSel.appendChild(opt2);
-
-      node.children.forEach((cid) => queue.push({ id: cid, depth: depth + 1 }));
-    }
+        node.children.forEach((cid) => queue.push({ id: cid, depth: depth + 1 }));
+      }
+    });
 
     // Restore previous selections if still valid
     if ([...parentSel.options].some((o) => o.value === prevParent))
@@ -359,12 +358,6 @@
     const fg      = document.getElementById('inp-fg').value;
     const radius  = document.getElementById('inp-radius').value + 'px';
     const fs      = document.getElementById('inp-fs').value + 'px';
-
-    // Validate: root already exists and no parent selected
-    if (parentId === null && mm.getRootId() !== null) {
-      alert('根节点已存在，请选择一个父节点。');
-      return;
-    }
 
     const style = {
       backgroundColor: bg,
