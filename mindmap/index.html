@@ -427,25 +427,25 @@
     fontSize: '12px',
   };
 
-  const rootId = mm.addNode(null, { id: 'root', text: '组织结构图' }, rootStyle);
+  const rootId = mm.addNode(null, { id: 'root', text: '组织结构图', layoutType: '组织结构' }, rootStyle);
 
-  const srcId  = mm.addNode(rootId, { text: '目录组织图' },   folderStyle);
-  mm.addNode(srcId,  { text: '目录组织图' },   fileStyle);
-  mm.addNode(srcId,  { text: '目录组织图' },     fileStyle);
-  const compId = mm.addNode(srcId, { text: '目录组织图' }, folderStyle);
-  mm.addNode(compId, { text: '目录组织图' }, fileStyle);
-  mm.addNode(compId, { text: '目录组织图' }, fileStyle);
+  const srcId  = mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构' },   folderStyle);
+  mm.addNode(srcId,  { text: '目录组织图', layoutType: '目录组织结构' },   fileStyle);
+  mm.addNode(srcId,  { text: '目录组织图', layoutType: '目录组织结构' },     fileStyle);
+  const compId = mm.addNode(srcId, { text: '目录组织图', layoutType: '目录组织结构' }, folderStyle);
+  mm.addNode(compId, { text: '目录组织图', layoutType: '目录组织结构' }, fileStyle);
+  mm.addNode(compId, { text: '目录组织图', layoutType: '目录组织结构' }, fileStyle);
 
-  const docsId = mm.addNode(rootId, { text: '目录组织图' },  folderStyle);
-  mm.addNode(docsId, { text: '目录组织图' }, fileStyle);
-  mm.addNode(docsId, { text: '目录组织图' },    fileStyle);
+  const docsId = mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构' },  folderStyle);
+  mm.addNode(docsId, { text: '目录组织图', layoutType: '目录组织结构' }, fileStyle);
+  mm.addNode(docsId, { text: '目录组织图', layoutType: '目录组织结构' },    fileStyle);
 
-  const testId = mm.addNode(rootId, { text: '目录组织图' }, folderStyle);
-  mm.addNode(testId, { text: '目录组织图' },  fileStyle);
-  mm.addNode(testId, { text: '目录组织图' },   fileStyle);
+  const testId = mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构' }, folderStyle);
+  mm.addNode(testId, { text: '目录组织图', layoutType: '目录组织结构' },  fileStyle);
+  mm.addNode(testId, { text: '目录组织图', layoutType: '目录组织结构' },   fileStyle);
 
-  mm.addNode(rootId, { text: '目录组织图' },  fileStyle);
-  mm.addNode(rootId, { text: '目录组织图' },     fileStyle);
+  mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构' },  fileStyle);
+  mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构' },     fileStyle);
 
   refreshSelects();
 </script>

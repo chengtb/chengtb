@@ -126,6 +126,7 @@ class MindMap {
     const node = {
       id,
       text: data.text != null ? String(data.text) : 'New Node',
+      layoutType: data.layoutType != null ? String(data.layoutType) : null,
       style: Object.assign({}, this._opts.defaultStyle, style),
       parentId: parentId,
       children: [],
@@ -243,6 +244,7 @@ class MindMap {
     return {
       id: node.id,
       text: node.text,
+      layoutType: node.layoutType,
       style: Object.assign({}, node.style),
       parentId: node.parentId,
       children: node.children.slice(),
@@ -265,7 +267,10 @@ class MindMap {
    */
   _computeLayout() {
     if (!this._rootId) return;
-    if (this._opts.layout === 'directory') {
+    const rootNode = this._nodes.get(this._rootId);
+    if (rootNode && rootNode.layoutType === '组织结构') {
+      this._computeLayoutMixed();
+    } else if (this._opts.layout === 'directory') {
       this._computeLayoutDirectory();
     } else {
       this._computeLayoutTree();
@@ -338,6 +343,64 @@ class MindMap {
     position(this._rootId, subtreeW.get(this._rootId) / 2, 0);
   }
 
+  /**
+   * Mixed layout: the root node's children fan out horizontally (org-chart style,
+   * with bezier connectors), while every non-root node lays its own children out
+   * vertically in directory style (indented list, L-shaped connectors).
+   */
+  _computeLayoutMixed() {
+    const { nodeWidth, nodeHeight, hSpacing, vSpacing } = this._opts;
+    const indentWidth = Math.max(1, this._opts.indentWidth);
+    const rootNode = this._nodes.get(this._rootId);
+
+    if (!rootNode || !rootNode.children.length) {
+      rootNode.x = 0;
+      rootNode.y = 0;
+      return;
+    }
+
+    // Maximum horizontal extent of a directory sub-tree when its root is at the
+    // given depth (0 = column origin).
+    const subtreeColWidth = (id, depth) => {
+      const node = this._nodes.get(id);
+      if (!node) return depth * indentWidth + nodeWidth;
+      const w = depth * indentWidth + nodeWidth;
+      return node.children.reduce(
+        (max, cid) => Math.max(max, subtreeColWidth(cid, depth + 1)),
+        w,
+      );
+    };
+
+    // Column widths for each direct child of root.
+    const childWidths = rootNode.children.map((cid) => subtreeColWidth(cid, 0));
+    const totalW =
+      childWidths.reduce((s, w) => s + w, 0) +
+      hSpacing * (rootNode.children.length - 1);
+
+    // Root is horizontally centered above all child columns.
+    rootNode.x = totalW / 2 - nodeWidth / 2;
+    rootNode.y = 0;
+
+    const childStartY = nodeHeight + vSpacing;
+
+    // Lay out each child's directory sub-tree inside its allocated column.
+    let curX = 0;
+    rootNode.children.forEach((cid, i) => {
+      if (i > 0) curX += hSpacing;
+      let row = 0;
+      const layoutDir = (id, colX, depth) => {
+        const node = this._nodes.get(id);
+        if (!node) return;
+        node.x = colX + depth * indentWidth;
+        node.y = childStartY + row * (nodeHeight + vSpacing);
+        row++;
+        node.children.forEach((childId) => layoutDir(childId, colX, depth + 1));
+      };
+      layoutDir(cid, curX, 0);
+      curX += childWidths[i];
+    });
+  }
+
   // ─── Rendering ────────────────────────────────────────────────────────────
 
   _render() {
@@ -379,7 +442,9 @@ class MindMap {
 
     // ── Draw connectors ──────────────────────────────────────────────────────
     this._svg.innerHTML = '';
-    const isDirectory = this._opts.layout === 'directory';
+    const rootNode = this._rootId ? this._nodes.get(this._rootId) : null;
+    const isMixed = !!(rootNode && rootNode.layoutType === '组织结构');
+    const isDirectory = this._opts.layout === 'directory' && !isMixed;
     const indentWidth = Math.max(1, this._opts.indentWidth);
 
     this._nodes.forEach((node) => {
@@ -392,7 +457,18 @@ class MindMap {
         'path',
       );
 
-      if (isDirectory) {
+      if (isMixed && parent.parentId === null) {
+        // Root → direct child: smooth bezier (org-chart style)
+        const x1 = parent.x + nodeWidth / 2 + offsetX;
+        const y1 = parent.y + nodeHeight + offsetY;
+        const x2 = node.x + nodeWidth / 2 + offsetX;
+        const y2 = node.y + offsetY;
+        const midY = (y1 + y2) / 2;
+        path.setAttribute(
+          'd',
+          `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`,
+        );
+      } else if (isMixed || isDirectory) {
         // Orthogonal L-shaped connector for directory mode:
         // vertical spine goes from parent's bottom-center down to child's row,
         // then a horizontal stub runs right to the child's left edge.
