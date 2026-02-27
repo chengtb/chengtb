@@ -16,6 +16,7 @@
    - [getRootId](#getrootid)
    - [getRootIds](#getrootids)
    - [on / off](#on--off)
+   - [zoomIn / zoomOut / setZoom / getZoom / center](#zoomin--zoomout--setzoom--getzoom--center)
 4. [节点数据字段](#4-节点数据字段)
 5. [布局模式](#5-布局模式)
    - [directory（默认）](#directory默认)
@@ -78,6 +79,10 @@ new MindMap(container, options?)
 | `lineColor` | `string` | `'#90a4ae'` | 连接线颜色 |
 | `lineWidth` | `number` | `1.5` | 连接线宽度（px）|
 | `pannable`  | `boolean` | `true` | 在容器父元素（滚动视口）上启用拖动平移（鼠标 + 触摸）。设为 `false` 可禁用。|
+| `zoomable`  | `boolean` | `true` | 自动在容器祖父元素（包裹区域）内渲染放大缩小控制按钮（＋／－ 及 ⊙ 居中），并注册键盘快捷键（Ctrl/⌘ + ±/0）。设为 `false` 可禁用。|
+| `zoomStep`  | `number`  | `0.15` | 每次缩放的步长 |
+| `zoomMin`   | `number`  | `0.25` | 最小缩放倍率 |
+| `zoomMax`   | `number`  | `3.0`  | 最大缩放倍率 |
 | `defaultStyle` | `object` | 见下方 | 所有节点共用的默认 CSS 属性 |
 
 #### defaultStyle 默认值
@@ -241,6 +246,28 @@ mm.on('nodeAdded', onAdded);
 // 稍后取消监听
 mm.off('nodeAdded', onAdded);
 ```
+
+---
+
+### zoomIn / zoomOut / setZoom / getZoom / center
+
+当 `options.zoomable` 为 `true`（默认）时，以下公共方法可通过代码控制视图缩放：
+
+```js
+mm.zoomIn()         // 放大一步（+zoomStep），可链式调用
+mm.zoomOut()        // 缩小一步（-zoomStep），可链式调用
+mm.setZoom(1.5)     // 设置绝对缩放倍率（自动夹紧到 zoomMin..zoomMax），可链式调用
+mm.getZoom()        // 返回当前缩放倍率（number）
+mm.center()         // 将内容居中到视口，可链式调用
+```
+
+**键盘快捷键**（同时注册）：
+
+| 快捷键 | 效果 |
+|--------|------|
+| Ctrl / ⌘ + `+` 或 `=` | 放大 |
+| Ctrl / ⌘ + `-` | 缩小 |
+| Ctrl / ⌘ + `0` | 居中 |
 
 ---
 

@@ -20,6 +20,12 @@
  * Drag-to-pan
  *   When options.pannable is true (default), drag-to-pan is automatically enabled on the
  *   parent element of the container (the scroll viewport).  Mouse and touch are both supported.
+ *
+ * Zoom & center
+ *   When options.zoomable is true (default), zoom controls (＋／－ and ⊙) are automatically
+ *   rendered in the grandparent element of the container (the wrap area).  Keyboard shortcuts
+ *   Ctrl/⌘ + Plus/Minus (zoom) and Ctrl/⌘ + 0 (center) are also registered.
+ *   Public API: zoomIn(), zoomOut(), setZoom(z), getZoom(), center()
  */
 class MindMap {
   /**
@@ -37,6 +43,10 @@ class MindMap {
    * @param {number}  [options.lineWidth=1.5]
    * @param {object}  [options.defaultStyle]  CSS properties applied to every node
    * @param {boolean} [options.pannable=true]  enable drag-to-pan on the parent scroll container
+   * @param {boolean} [options.zoomable=true]  render zoom + center controls in the wrap element
+   * @param {number}  [options.zoomStep=0.15]  zoom increment per step
+   * @param {number}  [options.zoomMin=0.25]   minimum zoom level
+   * @param {number}  [options.zoomMax=3.0]    maximum zoom level
    */
   constructor(container, options = {}) {
     this._container =
@@ -57,6 +67,10 @@ class MindMap {
         lineColor: '#90a4ae',
         lineWidth: 1.5,
         pannable: true,
+        zoomable: true,
+        zoomStep: 0.15,
+        zoomMin: 0.25,
+        zoomMax: 3.0,
         defaultStyle: {
           backgroundColor: '#e3f2fd',
           color: '#0d47a1',
@@ -80,6 +94,7 @@ class MindMap {
     this._nodes = new Map();
     this._roots = [];
     this._handlers = {};
+    this._zoom = 1.0;
 
     this._initDOM();
   }
@@ -117,6 +132,7 @@ class MindMap {
     this._layer.addEventListener('click', this._layerClickHandler);
 
     this._initPan();
+    this._initZoom();
   }
 
   /**
@@ -184,6 +200,171 @@ class MindMap {
     scrollEl.addEventListener('touchstart', this._panTouchStart, { passive: false });
     scrollEl.addEventListener('touchmove', this._panTouchMove, { passive: false });
     scrollEl.addEventListener('touchend', this._panTouchEnd);
+  }
+
+  /**
+   * Build and inject zoom + center controls into the wrap element (grandparent of the
+   * container), then register keyboard shortcuts.  Skips setup when options.zoomable is
+   * false or the required ancestor elements do not exist.
+   * @private
+   */
+  _initZoom() {
+    const scrollEl = this._container.parentElement;
+    if (!this._opts.zoomable || !scrollEl) return;
+    const wrapEl = scrollEl.parentElement;
+    if (!wrapEl) return;
+
+    // Ensure the wrap can host an absolutely-positioned overlay
+    if (getComputedStyle(wrapEl).position === 'static') {
+      wrapEl.style.position = 'relative';
+    }
+
+    // ── Build controls overlay ────────────────────────────────────────────────
+    const controls = document.createElement('div');
+    Object.assign(controls.style, {
+      position: 'absolute',
+      bottom: '20px',
+      right: '20px',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '6px',
+      zIndex: '10',
+      pointerEvents: 'none',
+    });
+
+    // Zoom bar
+    const bar = document.createElement('div');
+    Object.assign(bar.style, {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px',
+      background: 'rgba(255,255,255,0.93)',
+      border: '1px solid #bbb',
+      borderRadius: '24px',
+      padding: '4px 8px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+      pointerEvents: 'auto',
+    });
+
+    const mkZoomBtn = (label, title) => {
+      const btn = document.createElement('button');
+      Object.assign(btn.style, {
+        width: '28px',
+        height: '28px',
+        border: 'none',
+        borderRadius: '50%',
+        background: '#1a237e',
+        color: '#fff',
+        fontSize: '18px',
+        fontWeight: 'bold',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '0',
+        lineHeight: '1',
+        flexShrink: '0',
+        transition: 'background .15s',
+      });
+      btn.textContent = label;
+      btn.title = title;
+      btn.setAttribute('aria-label', title);
+      btn.addEventListener('mouseover', () => { btn.style.background = '#283593'; });
+      btn.addEventListener('mouseout',  () => { btn.style.background = '#1a237e'; });
+      return btn;
+    };
+
+    const btnOut = mkZoomBtn('－', '缩小');
+    this._zoomLevelEl = document.createElement('span');
+    Object.assign(this._zoomLevelEl.style, {
+      minWidth: '44px',
+      textAlign: 'center',
+      fontSize: '13px',
+      color: '#333',
+      fontWeight: '600',
+      userSelect: 'none',
+      fontFamily: 'Arial, sans-serif',
+    });
+    this._zoomLevelEl.textContent = '100%';
+    const btnIn = mkZoomBtn('＋', '放大');
+
+    bar.appendChild(btnOut);
+    bar.appendChild(this._zoomLevelEl);
+    bar.appendChild(btnIn);
+
+    // Center button
+    const btnCenter = document.createElement('button');
+    Object.assign(btnCenter.style, {
+      background: 'rgba(255,255,255,0.93)',
+      border: '1px solid #bbb',
+      borderRadius: '50%',
+      width: '36px',
+      height: '36px',
+      fontSize: '18px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#1a237e',
+      padding: '0',
+      transition: 'background .15s',
+      pointerEvents: 'auto',
+    });
+    btnCenter.textContent = '⊙';
+    btnCenter.title = '内容居中';
+    btnCenter.setAttribute('aria-label', '内容居中');
+    btnCenter.addEventListener('mouseover', () => { btnCenter.style.background = '#e8eaf6'; });
+    btnCenter.addEventListener('mouseout',  () => { btnCenter.style.background = 'rgba(255,255,255,0.93)'; });
+
+    controls.appendChild(bar);
+    controls.appendChild(btnCenter);
+    wrapEl.appendChild(controls);
+    this._zoomControls = controls;
+
+    // ── Zoom / center logic ───────────────────────────────────────────────────
+    const applyZoom = (z) => {
+      const { zoomMin, zoomMax } = this._opts;
+      const contentCenterX = (scrollEl.scrollLeft + scrollEl.clientWidth  / 2) / this._zoom;
+      const contentCenterY = (scrollEl.scrollTop  + scrollEl.clientHeight / 2) / this._zoom;
+
+      this._zoom = Math.min(zoomMax, Math.max(zoomMin, z));
+      this._container.style.zoom = this._zoom;
+      this._zoomLevelEl.textContent = Math.round(this._zoom * 100) + '%';
+
+      requestAnimationFrame(() => {
+        scrollEl.scrollLeft = contentCenterX * this._zoom - scrollEl.clientWidth  / 2;
+        scrollEl.scrollTop  = contentCenterY * this._zoom - scrollEl.clientHeight / 2;
+      });
+    };
+
+    const centerContent = () => {
+      scrollEl.scrollLeft = Math.max(0, (this._container.offsetWidth  - scrollEl.clientWidth)  / 2);
+      scrollEl.scrollTop  = Math.max(0, (this._container.offsetHeight - scrollEl.clientHeight) / 2);
+    };
+
+    // Store for public API
+    this._applyZoom    = applyZoom;
+    this._centerContent = centerContent;
+
+    // Button listeners
+    const { zoomStep } = this._opts;
+    btnIn    .addEventListener('click', () => applyZoom(this._zoom + zoomStep));
+    btnOut   .addEventListener('click', () => applyZoom(this._zoom - zoomStep));
+    btnCenter.addEventListener('click', centerContent);
+
+    // Keyboard shortcuts: Ctrl/⌘ + Plus/Minus to zoom, Ctrl/⌘ + 0 to center
+    this._zoomKeyHandler = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (e.key === '+' || e.key === '=') { e.preventDefault(); applyZoom(this._zoom + zoomStep); }
+      if (e.key === '-')                   { e.preventDefault(); applyZoom(this._zoom - zoomStep); }
+      if (e.key === '0')                   { e.preventDefault(); centerContent(); }
+    };
+    document.addEventListener('keydown', this._zoomKeyHandler);
+
+    // Auto-center on initial load
+    requestAnimationFrame(centerContent);
   }
 
   // ─── Public API ────────────────────────────────────────────────────────────
@@ -342,6 +523,51 @@ class MindMap {
     if (data.state != null) node.state = String(data.state);
     if (style) node.style = Object.assign({}, node.style, style);
     this._render();
+  }
+
+  /**
+   * Zoom in by one step.
+   * @returns {MindMap} this (chainable)
+   */
+  zoomIn() {
+    if (this._applyZoom) this._applyZoom(this._zoom + this._opts.zoomStep);
+    return this;
+  }
+
+  /**
+   * Zoom out by one step.
+   * @returns {MindMap} this (chainable)
+   */
+  zoomOut() {
+    if (this._applyZoom) this._applyZoom(this._zoom - this._opts.zoomStep);
+    return this;
+  }
+
+  /**
+   * Set the zoom level to an absolute value (clamped to zoomMin .. zoomMax).
+   * @param {number} z
+   * @returns {MindMap} this (chainable)
+   */
+  setZoom(z) {
+    if (this._applyZoom) this._applyZoom(z);
+    return this;
+  }
+
+  /**
+   * Return the current zoom level.
+   * @returns {number}
+   */
+  getZoom() {
+    return this._zoom;
+  }
+
+  /**
+   * Scroll the viewport so that the content is centered.
+   * @returns {MindMap} this (chainable)
+   */
+  center() {
+    if (this._centerContent) this._centerContent();
+    return this;
   }
 
   // ─── Internal helpers ──────────────────────────────────────────────────────
