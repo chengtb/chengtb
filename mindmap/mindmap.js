@@ -25,6 +25,7 @@ class MindMap {
    * @param {number}  [options.indentWidth=28]  horizontal indent per level (directory mode)
    * @param {number}  [options.hSpacing=48]     horizontal gap between sub-trees (tree mode)
    * @param {number}  [options.vSpacing=6]      vertical gap between rows
+   * @param {number}  [options.rootChildVSpacing=50]  vertical gap between root and its direct children (mixed layout)
    * @param {string}  [options.lineColor='#90a4ae']
    * @param {number}  [options.lineWidth=1.5]
    * @param {object}  [options.defaultStyle]  CSS properties applied to every node
@@ -43,6 +44,7 @@ class MindMap {
         indentWidth: 28,
         hSpacing: 48,
         vSpacing: 6,
+        rootChildVSpacing: 50,
         lineColor: '#90a4ae',
         lineWidth: 1.5,
         defaultStyle: {
@@ -381,7 +383,7 @@ class MindMap {
     rootNode.x = totalW / 2 - nodeWidth / 2;
     rootNode.y = 0;
 
-    const childStartY = nodeHeight + vSpacing;
+    const childStartY = nodeHeight + this._opts.rootChildVSpacing;
 
     // Lay out each child's directory sub-tree inside its allocated column.
     let curX = 0;
