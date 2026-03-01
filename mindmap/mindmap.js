@@ -18,11 +18,13 @@
  *   'directory'  (default) – vertical list with per-level indentation, L-shaped connectors
  *   'tree'                 – top-down tree with horizontal sibling spread, bezier connectors
  *
- * Drag-to-pan
+ * Drag-to-pan & wheel-scroll
  *   When options.pannable is true (default), drag-to-pan is automatically enabled on the
  *   parent element of the container (the scroll viewport).  Panning is implemented via
  *   CSS transform and is clamped so the canvas always overlaps the visible area.
- *   Mouse and touch are both supported.
+ *   Mouse and touch drag are both supported.  The mouse wheel additionally scrolls the
+ *   canvas vertically (deltaY) and horizontally (deltaX / Shift+wheel), also clamped.
+ *   Ctrl/⌘+wheel is not intercepted and is left to the browser.
  *
  * Zoom & center
  *   When options.zoomable is true (default), zoom controls (＋／－ and ⊙) are automatically
@@ -223,6 +225,19 @@ class MindMap {
     scrollEl.addEventListener('touchstart', this._panTouchStart, { passive: false });
     scrollEl.addEventListener('touchmove', this._panTouchMove, { passive: false });
     scrollEl.addEventListener('touchend', this._panTouchEnd);
+
+    // Wheel scroll: pan vertically (and horizontally) within the clamped viewport
+    this._panWheel = (e) => {
+      if (e.ctrlKey || e.metaKey) return; // leave Ctrl/⌘+wheel to the browser
+      e.preventDefault();
+      // Normalise delta across scroll modes (pixel, line, page)
+      const lineH = this._opts.nodeHeight + this._opts.vSpacing;
+      const scale = e.deltaMode === 1 ? lineH : e.deltaMode === 2 ? lineH * 10 : 1;
+      this._panX -= e.deltaX * scale;
+      this._panY -= e.deltaY * scale;
+      this._applyTransform(scrollEl);
+    };
+    scrollEl.addEventListener('wheel', this._panWheel, { passive: false });
   }
 
   /**
