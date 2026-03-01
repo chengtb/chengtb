@@ -24,7 +24,7 @@
  *
  * Zoom & center
  *   When options.zoomable is true (default), zoom controls (＋／－ and ⊙) are automatically
- *   rendered in the grandparent element of the container (the wrap area).  Keyboard shortcuts
+ *   rendered inside the scroll container (direct parent of the canvas).  Keyboard shortcuts
  *   Ctrl/⌘ + Plus/Minus (zoom) and Ctrl/⌘ + 0 (center) are also registered.
  *   Public API: zoomIn(), zoomOut(), setZoom(z), getZoom(), center()
  *
@@ -49,7 +49,7 @@ class MindMap {
    * @param {number}  [options.lineWidth=1.5]
    * @param {object}  [options.defaultStyle]  CSS properties applied to every node
    * @param {boolean} [options.pannable=true]  enable drag-to-pan on the parent scroll container
-   * @param {boolean} [options.zoomable=true]  render zoom + center controls in the wrap element
+   * @param {boolean} [options.zoomable=true]  render zoom + center controls inside the scroll container
    * @param {number}  [options.zoomStep=0.15]  zoom increment per step
    * @param {number}  [options.zoomMin=0.25]   minimum zoom level
    * @param {number}  [options.zoomMax=3.0]    maximum zoom level
@@ -217,8 +217,8 @@ class MindMap {
   }
 
   /**
-   * Build and inject zoom + center controls into the wrap element (grandparent of the
-   * container), then register keyboard shortcuts.  Skips setup when options.zoomable is
+   * Build and inject zoom + center controls inside the scroll container (direct parent of the
+   * canvas), then register keyboard shortcuts.  Skips setup when options.zoomable is
    * false or the required ancestor elements do not exist.
    * @private
    */
@@ -334,7 +334,7 @@ class MindMap {
 
     controls.appendChild(bar);
     controls.appendChild(btnCenter);
-    wrapEl.appendChild(controls);
+    scrollEl.appendChild(controls);
     this._zoomControls = controls;
 
     // ── Zoom / center logic ───────────────────────────────────────────────────
