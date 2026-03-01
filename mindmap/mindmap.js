@@ -410,8 +410,14 @@ class MindMap {
       text: data.text != null ? String(data.text) : 'New Node',
       tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
       state: data.state != null ? String(data.state) : '',
+      colorScheme: data.colorScheme != null ? String(data.colorScheme) : '',
       layoutType: data.layoutType != null ? String(data.layoutType) : null,
-      style: Object.assign({}, this._opts.defaultStyle, style),
+      style: Object.assign(
+        {},
+        this._opts.defaultStyle,
+        data.colorScheme ? (MindMap.COLOR_SCHEMES[data.colorScheme] || {}) : undefined,
+        style,
+      ),
       parentId: parentId,
       children: [],
       el: null,
@@ -541,7 +547,13 @@ class MindMap {
     if (data.text != null) node.text = String(data.text);
     if (data.tags != null) node.tags = Array.isArray(data.tags) ? data.tags.map(String) : [];
     if (data.state != null) node.state = String(data.state);
-    if (style) node.style = Object.assign({}, node.style, style);
+    if (data.colorScheme != null) {
+      node.colorScheme = String(data.colorScheme);
+      const schemeStyle = MindMap.COLOR_SCHEMES[node.colorScheme] || {};
+      node.style = Object.assign({}, node.style, schemeStyle, style || {});
+    } else if (style) {
+      node.style = Object.assign({}, node.style, style);
+    }
     this._render();
   }
 
@@ -677,6 +689,7 @@ class MindMap {
       text: node.text,
       tags: node.tags.slice(),
       state: node.state,
+      colorScheme: node.colorScheme,
       layoutType: node.layoutType,
       style: Object.assign({}, node.style),
       parentId: node.parentId,
@@ -1051,6 +1064,20 @@ class MindMap {
     }
   }
 }
+
+/**
+ * Built-in color-scheme presets.  Pass the key as `data.colorScheme` in
+ * addNode / updateNode to apply a pre-defined look without manual CSS.
+ *
+ * Keys: 'gray' | 'green' | 'blue' | 'orange' | 'red'
+ */
+MindMap.COLOR_SCHEMES = {
+  gray:   { backgroundColor: '#9e9e9e', color: '#fff', border: '1px solid #757575' },
+  green:  { backgroundColor: '#43a047', color: '#fff', border: '1px solid #2e7d32' },
+  blue:   { backgroundColor: '#1e88e5', color: '#fff', border: '1px solid #1565c0' },
+  orange: { backgroundColor: '#fb8c00', color: '#fff', border: '1px solid #e65100' },
+  red:    { backgroundColor: '#e53935', color: '#fff', border: '1px solid #b71c1c' },
+};
 
 // CommonJS shim (Node.js / bundlers that don't parse ES module syntax)
 if (typeof module !== 'undefined' && module.exports) {

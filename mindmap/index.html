@@ -220,6 +220,18 @@
       </select>
     </div>
 
+    <div class="form-group">
+      <label>色彩主题</label>
+      <select id="sel-scheme">
+        <option value="">— 默认 —</option>
+        <option value="gray">⬜ 灰色</option>
+        <option value="green">🟩 绿色</option>
+        <option value="blue">🟦 蓝色</option>
+        <option value="orange">🟧 橙色</option>
+        <option value="red">🟥 红色</option>
+      </select>
+    </div>
+
     <button class="btn-add" id="btn-add">＋ 添加节点</button>
 
     <hr />
@@ -367,8 +379,9 @@
     const tagsRaw = document.getElementById('inp-tags').value;
     const tags    = tagsRaw.split(',').map((t) => t.trim()).filter((t) => t.length > 0);
     const state   = document.getElementById('sel-state').value;
+    const colorScheme = document.getElementById('sel-scheme').value;
 
-    const style = {
+    const style = colorScheme ? {} : {
       backgroundColor: bg,
       color: fg,
       borderRadius: radius,
@@ -377,7 +390,7 @@
     };
 
     try {
-      const newId = mm.addNode(parentId, { text, tags, state }, style);
+      const newId = mm.addNode(parentId, { text, tags, state, colorScheme }, style);
       // Auto-select new node
       document.getElementById('sel-parent').value = newId;
       document.getElementById('sel-delete').value = newId;

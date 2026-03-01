@@ -213,6 +213,7 @@ mm.getNode(nodeId) → object | null
   text: string,
   tags: string[],
   state: string,        // '' | 'success' | 'warn'
+  colorScheme: string,  // '' | 'gray' | 'green' | 'blue' | 'orange' | 'red'
   layoutType: string | null,
   style: object,        // 当前生效的 CSS 样式
   parentId: string | null,
@@ -326,6 +327,7 @@ mm.center()         // 将内容居中到视口，可链式调用
 | `text` | `string` | `'New Node'` | 节点显示文字 |
 | `tags` | `string[]` | `[]` | 标签列表，渲染在文字下方的小徽章 |
 | `state` | `string` | `''` | 节点状态：`''`（无图标）\| `'success'` \| `'warn'` |
+| `colorScheme` | `string` | `''` | 节点色彩主题：`''`（默认色）\| `'gray'` \| `'green'` \| `'blue'` \| `'orange'` \| `'red'` |
 | `layoutType` | `string \| null` | `null` | 覆盖根节点的布局类型；目前支持 `'组织结构'` |
 
 ---
