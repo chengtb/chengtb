@@ -251,8 +251,9 @@
 
 </div>
 
-<script src="mindmap.js"></script>
-<script>
+<script type="module">
+  import MindMap from './mindmap.js';
+
   // ── Instantiate ─────────────────────────────────────────────────────────────
   const mm = new MindMap('#map-inner', {
     layout: 'directory',

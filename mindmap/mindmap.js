@@ -1052,7 +1052,10 @@ class MindMap {
   }
 }
 
-// CommonJS / ES-module compatibility shim
+// CommonJS shim (Node.js / bundlers that don't parse ES module syntax)
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = MindMap;
 }
+
+// ES6 default export (native browser modules, Vite, Rollup, etc.)
+export default MindMap;

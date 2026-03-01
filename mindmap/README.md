@@ -33,23 +33,41 @@
 
 ## 1. 快速开始
 
-```html
-<!-- 1. 引入库 -->
-<script src="mindmap.js"></script>
+### 方式一：浏览器 ES 模块（`<script type="module">`）
 
-<!-- 2. 准备容器 -->
+> ⚠️ `mindmap.js` 是标准 ES 模块，需通过 `type="module"` 加载。
+
+```html
+<!-- 1. 准备容器 -->
 <div id="map" style="width:100%;height:600px;"></div>
 
-<script>
-  // 3. 创建实例
+<script type="module">
+  import MindMap from './mindmap.js';
+
+  // 2. 创建实例
   const mm = new MindMap('#map', { layout: 'directory' });
 
-  // 4. 添加节点
+  // 3. 添加节点
   const rootId = mm.addNode(null, { text: '项目根目录' });
   const srcId  = mm.addNode(rootId, { text: 'src' });
   mm.addNode(srcId, { text: 'index.js', state: 'success' });
   mm.addNode(srcId, { text: 'utils.js', state: 'warn' });
 </script>
+```
+
+### 方式二：ES6 模块导入（推荐）
+
+```js
+import MindMap from './mindmap.js';
+
+const mm = new MindMap('#map', { layout: 'directory' });
+const rootId = mm.addNode(null, { text: '项目根目录' });
+```
+
+### 方式三：CommonJS（Node.js / 打包工具）
+
+```js
+const MindMap = require('./mindmap.js');
 ```
 
 ---
