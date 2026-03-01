@@ -9,10 +9,11 @@
  *   getRootIds()                     → returns all root node ids
  *
  * Events (register with .on(eventName, handler))
- *   'nodeAdded'    → { node }
- *   'nodeDeleted'  → { nodeIds, nodes }  // nodeIds: ids of deleted node + descendants; nodes: their public data snapshots
- *   'nodeClicked'  → { node }            // fired when the user clicks a node element
- *   'nodeSelected' → { node }            // fired when selection changes; node is null when deselected
+ *   'nodeAdded'      → { node }
+ *   'nodeDeleted'    → { nodeIds, nodes }  // nodeIds: ids of deleted node + descendants; nodes: their public data snapshots
+ *   'nodeClicked'    → { node }            // fired when the user clicks a node element
+ *   'nodeSelected'   → { node }            // fired when selection changes; node is null when deselected
+ *   'nodeReparented' → { node, oldParentId, newParentId }  // fired when updateNode changes a node's parent
  *
  * Layout modes (options.layout)
  *   'directory'  (default) – vertical list with per-level indentation, L-shaped connectors
@@ -599,9 +600,13 @@ class MindMap {
   }
 
   /**
-   * Update a node's text, tags, state and/or style.
+   * Update a node's text, tags, state, style and/or parent.
+   * When `data.parentId` is supplied the node is reparented:
+   *   - pass `null` to make the node a new root
+   *   - pass an existing node id to attach it as the last child of that node
+   *   Throws if the new parent does not exist or if the move would create a cycle.
    * @param {string}  nodeId
-   * @param {object}  [data]   { text?, tags?, state? }
+   * @param {object}  [data]   { text?, tags?, state?, colorScheme?, parentId? }
    * @param {object}  [style]  CSS overrides (merged with existing)
    */
   updateNode(nodeId, data = {}, style = {}) {
@@ -617,7 +622,51 @@ class MindMap {
     } else if (style) {
       node.style = Object.assign({}, node.style, style);
     }
+
+    // Reparent if data.parentId is explicitly provided (including null)
+    let reparentEvent = null;
+    if (Object.prototype.hasOwnProperty.call(data, 'parentId')) {
+      const newParentId = data.parentId === null ? null : String(data.parentId);
+
+      if (newParentId !== null && !this._nodes.has(newParentId)) {
+        throw new Error(`Parent node "${newParentId}" does not exist.`);
+      }
+      if (newParentId === nodeId) {
+        throw new Error(`A node cannot be its own parent.`);
+      }
+      // Cycle check: newParentId must not be a descendant of nodeId
+      if (newParentId !== null) {
+        let isCycle = false;
+        this._visitSubtree(nodeId, (n) => { if (!isCycle && n.id === newParentId) isCycle = true; });
+        if (isCycle) {
+          throw new Error(`Reparenting "${nodeId}" under "${newParentId}" would create a cycle.`);
+        }
+      }
+
+      const oldParentId = node.parentId;
+      if (oldParentId !== newParentId) {
+        // Detach from old parent / roots
+        if (oldParentId === null) {
+          this._roots = this._roots.filter((id) => id !== nodeId);
+        } else {
+          const oldParent = this._nodes.get(oldParentId);
+          oldParent.children = oldParent.children.filter((id) => id !== nodeId);
+        }
+
+        // Attach to new parent / roots
+        node.parentId = newParentId;
+        if (newParentId === null) {
+          this._roots.push(nodeId);
+        } else {
+          this._nodes.get(newParentId).children.push(nodeId);
+        }
+
+        reparentEvent = { node: this._publicNode(node), oldParentId, newParentId };
+      }
+    }
+
     this._render();
+    if (reparentEvent) this._emit('nodeReparented', reparentEvent);
   }
 
   /**
