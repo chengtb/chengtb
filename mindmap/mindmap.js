@@ -20,7 +20,9 @@
  *
  * Drag-to-pan
  *   When options.pannable is true (default), drag-to-pan is automatically enabled on the
- *   parent element of the container (the scroll viewport).  Mouse and touch are both supported.
+ *   parent element of the container (the scroll viewport).  Panning is implemented via
+ *   CSS transform and is clamped so the canvas always overlaps the visible area.
+ *   Mouse and touch are both supported.
  *
  * Zoom & center
  *   When options.zoomable is true (default), zoom controls (＋／－ and ⊙) are automatically
@@ -105,6 +107,8 @@ class MindMap {
     this._roots = [];
     this._handlers = {};
     this._zoom = 1.0;
+    this._panX = 0;
+    this._panY = 0;
     this._selectedId = null;
 
     this._initDOM();
@@ -114,8 +118,10 @@ class MindMap {
 
   _initDOM() {
     const c = this._container;
-    c.style.position = 'relative';
-    c.style.overflow = 'auto';
+    c.style.position = 'absolute';
+    c.style.top = '0';
+    c.style.left = '0';
+    c.style.transformOrigin = '0 0';
 
     // SVG layer (underneath) for connectors
     this._svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -151,6 +157,8 @@ class MindMap {
 
   /**
    * Attach drag-to-pan (mouse + touch) to the parent scroll container.
+   * Panning is implemented via CSS transform on the canvas and is clamped so
+   * the canvas always overlaps the visible viewport.
    * Skips setup when options.pannable is false or there is no parent element.
    * @private
    */
@@ -159,21 +167,22 @@ class MindMap {
     if (!this._opts.pannable || !scrollEl) return;
 
     let dragging = false;
-    let startX = 0, startY = 0, scrollLeft = 0, scrollTop = 0;
+    let startX = 0, startY = 0, startPanX = 0, startPanY = 0;
 
     const beginDrag = (pageX, pageY) => {
       dragging = true;
       startX = pageX;
       startY = pageY;
-      scrollLeft = scrollEl.scrollLeft;
-      scrollTop  = scrollEl.scrollTop;
+      startPanX = this._panX;
+      startPanY = this._panY;
       scrollEl.style.cursor = 'grabbing';
     };
 
     const moveDrag = (pageX, pageY) => {
       if (!dragging) return;
-      scrollEl.scrollLeft = scrollLeft - (pageX - startX);
-      scrollEl.scrollTop  = scrollTop  - (pageY - startY);
+      this._panX = startPanX + (pageX - startX);
+      this._panY = startPanY + (pageY - startY);
+      this._applyTransform(scrollEl);
     };
 
     const endDrag = () => {
@@ -225,12 +234,10 @@ class MindMap {
   _initZoom() {
     const scrollEl = this._container.parentElement;
     if (!this._opts.zoomable || !scrollEl) return;
-    const wrapEl = scrollEl.parentElement;
-    if (!wrapEl) return;
 
-    // Ensure the wrap can host an absolutely-positioned overlay
-    if (getComputedStyle(wrapEl).position === 'static') {
-      wrapEl.style.position = 'relative';
+    // Ensure the scroll container can host an absolutely-positioned overlay
+    if (getComputedStyle(scrollEl).position === 'static') {
+      scrollEl.style.position = 'relative';
     }
 
     // ── Build controls overlay ────────────────────────────────────────────────
@@ -340,22 +347,31 @@ class MindMap {
     // ── Zoom / center logic ───────────────────────────────────────────────────
     const applyZoom = (z) => {
       const { zoomMin, zoomMax } = this._opts;
-      const contentCenterX = (scrollEl.scrollLeft + scrollEl.clientWidth  / 2) / this._zoom;
-      const contentCenterY = (scrollEl.scrollTop  + scrollEl.clientHeight / 2) / this._zoom;
+      const vpW = scrollEl.clientWidth;
+      const vpH = scrollEl.clientHeight;
+
+      // Keep the content point currently at the viewport centre stable
+      const contentCenterX = (vpW / 2 - this._panX) / this._zoom;
+      const contentCenterY = (vpH / 2 - this._panY) / this._zoom;
 
       this._zoom = Math.min(zoomMax, Math.max(zoomMin, z));
-      this._container.style.zoom = this._zoom;
       this._zoomLevelEl.textContent = Math.round(this._zoom * 100) + '%';
 
-      requestAnimationFrame(() => {
-        scrollEl.scrollLeft = contentCenterX * this._zoom - scrollEl.clientWidth  / 2;
-        scrollEl.scrollTop  = contentCenterY * this._zoom - scrollEl.clientHeight / 2;
-      });
+      // Recompute pan to keep the same content point at the viewport centre
+      this._panX = vpW / 2 - contentCenterX * this._zoom;
+      this._panY = vpH / 2 - contentCenterY * this._zoom;
+
+      this._applyTransform(scrollEl);
     };
 
     const centerContent = () => {
-      scrollEl.scrollLeft = Math.max(0, (this._container.offsetWidth  - scrollEl.clientWidth)  / 2);
-      scrollEl.scrollTop  = Math.max(0, (this._container.offsetHeight - scrollEl.clientHeight) / 2);
+      const vpW = scrollEl.clientWidth;
+      const vpH = scrollEl.clientHeight;
+      const contW = this._container.offsetWidth;
+      const contH = this._container.offsetHeight;
+      this._panX = (vpW - contW * this._zoom) / 2;
+      this._panY = (vpH - contH * this._zoom) / 2;
+      this._applyTransform(scrollEl);
     };
 
     // Store for public API
@@ -379,6 +395,38 @@ class MindMap {
 
     // Auto-center on initial load
     requestAnimationFrame(centerContent);
+  }
+
+  /**
+   * Clamp this._panX / this._panY so the canvas always overlaps the viewport.
+   * When content is larger than the viewport it is clamped to stay within the
+   * scroll range; when it is smaller it is kept fully visible inside.
+   * @private
+   */
+  _clampPan(scrollEl) {
+    const vpW = scrollEl.clientWidth;
+    const vpH = scrollEl.clientHeight;
+    const contW = this._container.offsetWidth  * this._zoom;
+    const contH = this._container.offsetHeight * this._zoom;
+    const minX = Math.min(0, vpW - contW);
+    const maxX = Math.max(0, vpW - contW);
+    const minY = Math.min(0, vpH - contH);
+    const maxY = Math.max(0, vpH - contH);
+    this._panX = Math.max(minX, Math.min(maxX, this._panX));
+    this._panY = Math.max(minY, Math.min(maxY, this._panY));
+  }
+
+  /**
+   * Apply the current pan and zoom as a CSS transform on the canvas element.
+   * Clamps the pan within viewport bounds before applying.
+   * When scrollEl is absent (standalone canvas), skips clamping; _panX/_panY
+   * remain 0 because _initPan and _initZoom both require a parent element.
+   * @private
+   */
+  _applyTransform(scrollEl) {
+    if (scrollEl) this._clampPan(scrollEl);
+    this._container.style.transform =
+      `translate(${this._panX}px, ${this._panY}px) scale(${this._zoom})`;
   }
 
   // ─── Public API ────────────────────────────────────────────────────────────
@@ -594,7 +642,7 @@ class MindMap {
   }
 
   /**
-   * Scroll the viewport so that the content is centered.
+   * Pan the canvas so that the content is centered in the viewport.
    * @returns {MindMap} this (chainable)
    */
   center() {
@@ -1062,6 +1110,10 @@ class MindMap {
       const selNode = this._nodes.get(this._selectedId);
       this._applySelectionStyle(selNode);
     }
+
+    // ── Re-apply transform so pan/zoom stays consistent after content changes ───
+    const scrollEl = this._container.parentElement;
+    if (scrollEl) this._applyTransform(scrollEl);
   }
 }
 

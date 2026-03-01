@@ -139,19 +139,16 @@
     /* ── canvas area ── */
     #map-container {
       flex: 1;
-      overflow: scroll;
-      scrollbar-width: none; /* Firefox */
-      padding: 20px;
+      overflow: hidden;
       background: #e8eaf6;
-    }
-    #map-container::-webkit-scrollbar { display: none; } /* Chrome / Safari */
-
-    /* wrapper keeps canvas left-aligned inside overflow scroll */
-    #map-inner {
       position: relative;
-      display: inline-block;
-      min-width: 100%;
-      min-height: 100%;
+    }
+
+    /* wrapper canvas – positioned and transformed by MindMap JS */
+    #map-inner {
+      position: absolute;
+      top: 0;
+      left: 0;
     }
 
   </style>
