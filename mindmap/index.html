@@ -106,6 +106,7 @@
     .btn-add    { background: #4285f4; color: #fff; }
     .btn-delete { background: #e53935; color: #fff; }
     .btn-root   { background: #43a047; color: #fff; }
+    .btn-update { background: #7b1fa2; color: #fff; }
 
     hr { border: none; border-top: 1px solid #eee; }
 
@@ -127,6 +128,7 @@
     .log-add    { color: #2e7d32; }
     .log-delete { color: #c62828; }
     .log-click  { color: #1565c0; }
+    .log-update { color: #6a1b9a; }
 
     /* ── canvas wrapper (holds map) ── */
     #map-area {
@@ -233,6 +235,81 @@
 
     <hr />
 
+    <h3>更新节点</h3>
+
+    <div class="form-group">
+      <label>选择要更新的节点</label>
+      <select id="sel-update">
+        <option value="">-- 选择节点 --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>文字（留空 = 不修改）</label>
+      <input id="upd-text" type="text" placeholder="留空 = 不修改" />
+    </div>
+
+    <div class="form-group">
+      <label>标签（逗号分隔，留空 = 不修改）</label>
+      <input id="upd-tags" type="text" placeholder="留空 = 不修改" />
+    </div>
+
+    <div class="form-group">
+      <label>状态图标</label>
+      <select id="upd-state">
+        <option value="__keep__">— 保持不变 —</option>
+        <option value="">— 无 —</option>
+        <option value="success">✓ 成功</option>
+        <option value="warn">! 警告</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>色彩主题</label>
+      <select id="upd-scheme">
+        <option value="__keep__">— 保持不变 —</option>
+        <option value="">— 默认 —</option>
+        <option value="gray">⬜ 灰色</option>
+        <option value="green">🟩 绿色</option>
+        <option value="blue">🟦 蓝色</option>
+        <option value="orange">🟧 橙色</option>
+        <option value="red">🟥 红色</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label><input id="upd-style-check" type="checkbox" /> 同时更新样式</label>
+    </div>
+
+    <div id="upd-style-fields" style="display:none;">
+      <div class="form-group">
+        <label>背景色</label>
+        <div class="color-row">
+          <input id="upd-bg" type="color" value="#e3f2fd" />
+          <span id="lbl-upd-bg">#e3f2fd</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>文字颜色</label>
+        <div class="color-row">
+          <input id="upd-fg" type="color" value="#0d47a1" />
+          <span id="lbl-upd-fg">#0d47a1</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>更改父节点</label>
+      <select id="upd-parent">
+        <option value="__keep__">— 保持不变 —</option>
+        <option value="__root__">— 提升为根节点 —</option>
+      </select>
+    </div>
+
+    <button class="btn-update" id="btn-update">✎ 更新节点</button>
+
+    <hr />
+
     <h3>删除节点</h3>
 
     <div class="form-group">
@@ -309,7 +386,13 @@
     if (node) {
       document.getElementById('sel-parent').value = node.id;
       document.getElementById('sel-delete').value = node.id;
+      document.getElementById('sel-update').value = node.id;
     }
+  });
+
+  mm.on('nodeReparented', ({ node, oldParentId, newParentId }) => {
+    log(`nodeReparented  id="${node.id}"  ${oldParentId ?? 'null'} → ${newParentId ?? 'null'}`, 'update');
+    refreshSelects();
   });
 
   // ── UI helpers ──────────────────────────────────────────────────────────────
@@ -317,11 +400,17 @@
   function refreshSelects() {
     const parentSel = document.getElementById('sel-parent');
     const deleteSel = document.getElementById('sel-delete');
-    const prevParent = parentSel.value;
-    const prevDelete = deleteSel.value;
+    const updateSel = document.getElementById('sel-update');
+    const updParentSel = document.getElementById('upd-parent');
+    const prevParent    = parentSel.value;
+    const prevDelete    = deleteSel.value;
+    const prevUpdate    = updateSel.value;
+    const prevUpdParent = updParentSel.value;
 
-    parentSel.innerHTML = '<option value="">-- 无（创建根节点）--</option>';
-    deleteSel.innerHTML = '<option value="">-- 选择节点 --</option>';
+    parentSel.innerHTML    = '<option value="">-- 无（创建根节点）--</option>';
+    deleteSel.innerHTML    = '<option value="">-- 选择节点 --</option>';
+    updateSel.innerHTML    = '<option value="">-- 选择节点 --</option>';
+    updParentSel.innerHTML = '<option value="__keep__">— 保持不变 —</option><option value="__root__">— 提升为根节点 —</option>';
 
     // Walk all root trees in BFS order for display
     mm.getRootIds().forEach((rootId) => {
@@ -333,10 +422,10 @@
         const indent = '　'.repeat(depth);
         const label = `${indent}${node.text} (${id})`;
 
-        const opt1 = new Option(label, id);
-        const opt2 = new Option(label, id);
-        parentSel.appendChild(opt1);
-        deleteSel.appendChild(opt2);
+        parentSel.appendChild(new Option(label, id));
+        deleteSel.appendChild(new Option(label, id));
+        updateSel.appendChild(new Option(label, id));
+        updParentSel.appendChild(new Option(label, id));
 
         node.children.forEach((cid) => queue.push({ id: cid, depth: depth + 1 }));
       }
@@ -347,6 +436,10 @@
       parentSel.value = prevParent;
     if ([...deleteSel.options].some((o) => o.value === prevDelete))
       deleteSel.value = prevDelete;
+    if ([...updateSel.options].some((o) => o.value === prevUpdate))
+      updateSel.value = prevUpdate;
+    if ([...updParentSel.options].some((o) => o.value === prevUpdParent))
+      updParentSel.value = prevUpdParent;
   }
 
   function log(msg, type) {
@@ -358,11 +451,25 @@
     box.prepend(entry);
   }
 
+  function handleError(err) { alert(err.message); }
+
   // Sync color label displays
   ['bg', 'fg'].forEach((key) => {
     const inp = document.getElementById(`inp-${key}`);
     const lbl = document.getElementById(`lbl-${key}`);
     inp.addEventListener('input', () => { lbl.textContent = inp.value; });
+  });
+
+  // Sync update-form color label displays
+  ['bg', 'fg'].forEach((key) => {
+    const inp = document.getElementById(`upd-${key}`);
+    const lbl = document.getElementById(`lbl-upd-${key}`);
+    inp.addEventListener('input', () => { lbl.textContent = inp.value; });
+  });
+
+  // Toggle update style fields visibility
+  document.getElementById('upd-style-check').addEventListener('change', (e) => {
+    document.getElementById('upd-style-fields').style.display = e.target.checked ? '' : 'none';
   });
 
   // ── Button: Add node ────────────────────────────────────────────────────────
@@ -392,7 +499,47 @@
       document.getElementById('sel-parent').value = newId;
       document.getElementById('sel-delete').value = newId;
     } catch (err) {
-      alert(err.message);
+      handleError(err);
+    }
+  });
+
+  // ── Button: Update node ─────────────────────────────────────────────────────
+  document.getElementById('btn-update').addEventListener('click', () => {
+    const nodeId = document.getElementById('sel-update').value;
+    if (!nodeId) { alert('请先选择要更新的节点。'); return; }
+
+    const data = {};
+    const style = {};
+
+    const text = document.getElementById('upd-text').value.trim();
+    if (text) data.text = text;
+
+    const tagsRaw = document.getElementById('upd-tags').value.trim();
+    if (tagsRaw) data.tags = tagsRaw.split(',').map((t) => t.trim()).filter((t) => t);
+
+    const state = document.getElementById('upd-state').value;
+    if (state !== '__keep__') data.state = state;
+
+    const scheme = document.getElementById('upd-scheme').value;
+    if (scheme !== '__keep__') data.colorScheme = scheme;
+
+    if (document.getElementById('upd-style-check').checked) {
+      style.backgroundColor = document.getElementById('upd-bg').value;
+      style.color           = document.getElementById('upd-fg').value;
+    }
+
+    const parentVal = document.getElementById('upd-parent').value;
+    if (parentVal === '__root__') {
+      data.parentId = null;
+    } else if (parentVal !== '__keep__') {
+      data.parentId = parentVal;
+    }
+
+    try {
+      mm.updateNode(nodeId, data, style);
+      log(`nodeUpdated  id="${nodeId}"  ${JSON.stringify(data)}`, 'update');
+    } catch (err) {
+      handleError(err);
     }
   });
 
@@ -403,7 +550,7 @@
     try {
       mm.deleteNode(id);
     } catch (err) {
-      alert(err.message);
+      handleError(err);
     }
   });
 
