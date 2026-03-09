@@ -713,25 +713,27 @@
     fontSize: '12px',
   };
 
-  const rootId = mm.addNode(null, { id: 'root', text: '组织结构图', layoutType: '组织结构', tags: ['v2.0', 'main'], state: 'success' }, rootStyle);
+  const rootId = mm.addNode(null, { id: 'root', text: '📦 frontend-project', tags: ['v2.0', 'main'], state: 'success' }, rootStyle);
 
-  const srcId  = mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构', tags: ['src'], state: 'success' },   folderStyle);
-  mm.addNode(srcId,  { text: '目录组织图', layoutType: '目录组织结构', tags: ['js', 'ts'], state: 'success' },   fileStyle);
-  mm.addNode(srcId,  { text: '目录组织图', layoutType: '目录组织结构', state: 'warn' },     fileStyle);
-  const compId = mm.addNode(srcId, { text: '目录组织图', layoutType: '目录组织结构', tags: ['components'] }, folderStyle);
-  mm.addNode(compId, { text: '目录组织图', layoutType: '目录组织结构', state: 'success' }, fileStyle);
-  mm.addNode(compId, { text: '目录组织图', layoutType: '目录组织结构' }, fileStyle);
+  const srcId  = mm.addNode(rootId, { text: '📁 src', tags: ['src'], state: 'success' }, folderStyle);
+  mm.addNode(srcId,  { text: '📄 main.ts', tags: ['ts'], state: 'success' }, fileStyle);
+  mm.addNode(srcId,  { text: '📄 App.vue', state: 'warn' }, fileStyle);
+  const compId = mm.addNode(srcId, { text: '📁 components', tags: ['components'] }, folderStyle);
+  mm.addNode(compId, { text: '📄 Header.vue', state: 'success' }, fileStyle);
+  mm.addNode(compId, { text: '📄 Footer.vue' }, fileStyle);
+  mm.addNode(compId, { text: '📄 Sidebar.vue' }, fileStyle);
 
-  const docsId = mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构', tags: ['docs'], state: 'warn' },  folderStyle);
-  mm.addNode(docsId, { text: '目录组织图', layoutType: '目录组织结构' }, fileStyle);
-  mm.addNode(docsId, { text: '目录组织图', layoutType: '目录组织结构' },    fileStyle);
+  const docsId = mm.addNode(rootId, { text: '📁 docs', tags: ['docs'], state: 'warn' }, folderStyle);
+  mm.addNode(docsId, { text: '📄 README.md', state: 'success' }, fileStyle);
+  mm.addNode(docsId, { text: '📄 API参考.md' }, fileStyle);
+  mm.addNode(docsId, { text: '📄 CHANGELOG.md' }, fileStyle);
 
-  const testId = mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构', tags: ['test', 'ci'], state: 'success' }, folderStyle);
-  mm.addNode(testId, { text: '目录组织图', layoutType: '目录组织结构', state: 'success' },  fileStyle);
-  mm.addNode(testId, { text: '目录组织图', layoutType: '目录组织结构', state: 'warn' },   fileStyle);
+  const testId = mm.addNode(rootId, { text: '📁 tests', tags: ['test', 'ci'], state: 'success' }, folderStyle);
+  mm.addNode(testId, { text: '📄 unit.spec.ts', state: 'success' }, fileStyle);
+  mm.addNode(testId, { text: '📄 e2e.spec.ts', state: 'warn' }, fileStyle);
 
-  mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构' },  fileStyle);
-  mm.addNode(rootId, { text: '目录组织图', layoutType: '目录组织结构' },     fileStyle);
+  mm.addNode(rootId, { text: '📄 package.json', tags: ['config'] }, fileStyle);
+  mm.addNode(rootId, { text: '📄 vite.config.ts', tags: ['config'] }, fileStyle);
 
   refreshSelects();
 </script>
