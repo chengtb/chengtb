@@ -2,18 +2,20 @@
  * MindMap – a lightweight mind-map library that supports multiple independent trees.
  *
  * Supported operations
- *   addNode(parentId, data, style?)  → returns new node id
+ *   addNode(parentId, data, style?)           → returns new node id
  *   deleteNode(nodeId)
- *   updateNode(nodeId, data, style?) → update text / style of an existing node
- *   getRootId()                      → returns the first root node id (or null)
- *   getRootIds()                     → returns all root node ids
+ *   updateNode(nodeId, data, style?)          → update text / style of an existing node
+ *   reorderChildren(parentId, childIds)       → reorder children of a node (or root nodes when parentId is null)
+ *   getRootId()                               → returns the first root node id (or null)
+ *   getRootIds()                              → returns all root node ids
  *
  * Events (register with .on(eventName, handler))
- *   'nodeAdded'      → { node }
- *   'nodeDeleted'    → { nodeIds, nodes }  // nodeIds: ids of deleted node + descendants; nodes: their public data snapshots
- *   'nodeClicked'    → { node }            // fired when the user clicks a node element
- *   'nodeSelected'   → { node }            // fired when selection changes; node is null when deselected
- *   'nodeReparented' → { node, oldParentId, newParentId }  // fired when updateNode changes a node's parent
+ *   'nodeAdded'               → { node }
+ *   'nodeDeleted'             → { nodeIds, nodes }  // nodeIds: ids of deleted node + descendants; nodes: their public data snapshots
+ *   'nodeClicked'             → { node }            // fired when the user clicks a node element
+ *   'nodeSelected'            → { node }            // fired when selection changes; node is null when deselected
+ *   'nodeReparented'          → { node, oldParentId, newParentId }  // fired when updateNode changes a node's parent
+ *   'nodeChildrenReordered'   → { parentId, childIds }              // fired when reorderChildren succeeds
  *
  * Layout modes (options.layout)
  *   'directory'  (default) – vertical list with per-level indentation, L-shaped connectors
@@ -667,6 +669,56 @@ class MindMap {
 
     this._render();
     if (reparentEvent) this._emit('nodeReparented', reparentEvent);
+  }
+
+  /**
+   * Reorder the children of a node, or the top-level root nodes.
+   * @param {string|null} parentId  The parent node id whose children to reorder,
+   *   or `null` to reorder the root-level nodes.
+   * @param {string[]}    childIds  The complete, ordered list of child ids.
+   *   Must contain every current child exactly once (no extras, no omissions, no duplicates).
+   *   Throws if `parentId` does not exist, or if `childIds` does not match the existing children.
+   * @returns {MindMap} this (chainable)
+   */
+  reorderChildren(parentId, childIds) {
+    if (!Array.isArray(childIds)) throw new Error('childIds must be an array.');
+
+    let current;
+    if (parentId === null) {
+      current = this._roots;
+    } else {
+      if (!this._nodes.has(parentId)) throw new Error(`Node "${parentId}" does not exist.`);
+      current = this._nodes.get(parentId).children;
+    }
+
+    if (childIds.length !== current.length) {
+      throw new Error(
+        `childIds length (${childIds.length}) does not match the number of children (${current.length}).`,
+      );
+    }
+    if (new Set(childIds).size !== childIds.length) {
+      throw new Error('childIds must not contain duplicates.');
+    }
+    const currentSet = new Set(current);
+    for (const id of childIds) {
+      if (!currentSet.has(id)) {
+        throw new Error(
+          parentId === null
+            ? `"${id}" is not a root node.`
+            : `"${id}" is not a child of node "${parentId}".`,
+        );
+      }
+    }
+
+    if (parentId === null) {
+      this._roots = childIds.slice();
+    } else {
+      this._nodes.get(parentId).children = childIds.slice();
+    }
+
+    this._render();
+    this._emit('nodeChildrenReordered', { parentId, childIds: childIds.slice() });
+    return this;
   }
 
   /**
