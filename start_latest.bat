@@ -122,7 +122,8 @@ if "!OLD_RUNNING!"=="yes" (
 
 :: 情形 C（或 B 成功关闭后）：启动最大版本
 echo [INFO] 正在启动最大版本 !MAX_VER_FILE! ...
-start "" "!MAX_VER_FILE!"
+:: /b 表示在当前窗口启动，不新开控制台窗口
+start /b "" "!MAX_VER_FILE!"
 
 :EOF
 endlocal
