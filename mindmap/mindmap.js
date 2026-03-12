@@ -1086,6 +1086,7 @@ class MindMap {
       const stateIcons = {
         success: { char: '✓', color: '#fff', bg: '#43a047' },
         warn: { char: '!', color: '#fff', bg: '#fb8c00' },
+        error: { char: '✕', color: '#fff', bg: '#e53935' },
       };
       const iconDef = stateIcons[node.state];
       if (iconDef) {

@@ -231,6 +231,7 @@
         <option value="">— 无 —</option>
         <option value="success">✓ 成功</option>
         <option value="warn">! 警告</option>
+        <option value="error">✕ 错误</option>
       </select>
     </div>
 
@@ -276,6 +277,7 @@
         <option value="">— 无 —</option>
         <option value="success">✓ 成功</option>
         <option value="warn">! 警告</option>
+        <option value="error">✕ 错误</option>
       </select>
     </div>
 
@@ -731,6 +733,7 @@
   const testId = mm.addNode(rootId, { text: '📁 tests', tags: ['test', 'ci'], state: 'success' }, folderStyle);
   mm.addNode(testId, { text: '📄 unit.spec.ts', state: 'success' }, fileStyle);
   mm.addNode(testId, { text: '📄 e2e.spec.ts', state: 'warn' }, fileStyle);
+  mm.addNode(testId, { text: '📄 lint.spec.ts', state: 'error' }, fileStyle);
 
   mm.addNode(rootId, { text: '📄 package.json', tags: ['config'] }, fileStyle);
   mm.addNode(rootId, { text: '📄 vite.config.ts', tags: ['config'] }, fileStyle);
