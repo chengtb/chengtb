@@ -232,6 +232,8 @@
         <option value="success">✓ 成功</option>
         <option value="warn">! 警告</option>
         <option value="error">✕ 错误</option>
+        <option value="doing">↻ 进行中</option>
+        <option value="waiting">… 等待中</option>
       </select>
     </div>
 
@@ -278,6 +280,8 @@
         <option value="success">✓ 成功</option>
         <option value="warn">! 警告</option>
         <option value="error">✕ 错误</option>
+        <option value="doing">↻ 进行中</option>
+        <option value="waiting">… 等待中</option>
       </select>
     </div>
 
@@ -727,8 +731,8 @@
 
   const docsId = mm.addNode(rootId, { text: '📁 docs', tags: ['docs'], state: 'warn' }, folderStyle);
   mm.addNode(docsId, { text: '📄 README.md', state: 'success' }, fileStyle);
-  mm.addNode(docsId, { text: '📄 API参考.md' }, fileStyle);
-  mm.addNode(docsId, { text: '📄 CHANGELOG.md' }, fileStyle);
+  mm.addNode(docsId, { text: '📄 API参考.md', state: 'doing' }, fileStyle);
+  mm.addNode(docsId, { text: '📄 CHANGELOG.md', state: 'waiting' }, fileStyle);
 
   const testId = mm.addNode(rootId, { text: '📁 tests', tags: ['test', 'ci'], state: 'success' }, folderStyle);
   mm.addNode(testId, { text: '📄 unit.spec.ts', state: 'success' }, fileStyle);
