@@ -11,6 +11,8 @@ export interface ProcessStep {
   endTime?: string
   comment?: string
   subSteps?: ProcessSubStep[]
+  /** When this step is rejected it loops back to the step with this id */
+  returnToStepId?: string
 }
 
 export interface ProcessSubStep {

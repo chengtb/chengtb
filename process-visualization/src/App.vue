@@ -128,7 +128,7 @@
                 <span class="panel__title">节点详情</span>
               </div>
               <div class="panel__body">
-                <StepDetail :step="selectedStep" />
+                <StepDetail :step="selectedStep" :process="currentProcess" />
               </div>
             </div>
 
