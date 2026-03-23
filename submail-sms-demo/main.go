@@ -7,14 +7,13 @@
 package main
 
 import (
-	"bytes"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,8 +21,8 @@ import (
 
 // API endpoints
 const (
-	SMSSendAPI  = "https://api-v4.mysubmail.com/sms/send"
-	TimestampAPI = "https://api-v4.mysubmail.com/service/timestamp"
+	SMSSendAPI   = "https://api.mysubmail.com/message/send"
+	TimestampAPI = "https://api.mysubmail.com/service/timestamp"
 )
 
 // Credentials — replace with your actual APPID and APPKEY from https://www.mysubmail.com
@@ -62,22 +61,19 @@ func md5Hash(s string) string {
 
 // buildMD5Signature constructs the SUBMAIL sign_version=2 / sign_type=md5 signature.
 //
-// The algorithm (from the official docs) is:
+// The algorithm (from the official SUBMAIL Go SDK) is:
 //
 //	APPID + APPKEY + sorted_params_string + APPID + APPKEY
 //
-// where sorted_params_string is the alphabetically sorted key=value pairs of the
-// *signed* fields joined with "&".  The "content" / "vars" payload fields are NOT
-// included in the signature.
+// where sorted_params_string is the alphabetically sorted key=value pairs of ALL
+// signed request fields (appid, sign_type, sign_version, timestamp, to) joined with
+// "&".  The "content" / "vars" payload fields must be added to the request AFTER
+// the signature is calculated, not before.
 func buildMD5Signature(params map[string]string) string {
-	// Only the following fields participate in the signature.
-	signFields := []string{"appid", "sign_type", "sign_version", "timestamp", "to"}
-
-	keys := make([]string, 0, len(signFields))
-	for _, k := range signFields {
-		if _, ok := params[k]; ok {
-			keys = append(keys, k)
-		}
+	// Collect all keys currently in the map (content is not yet present).
+	keys := make([]string, 0, len(params))
+	for k := range params {
+		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
@@ -90,23 +86,18 @@ func buildMD5Signature(params map[string]string) string {
 	return md5Hash(raw)
 }
 
-// postForm sends a multipart/form-data POST request to url with the given fields
-// and returns the response body as a string.
-func postForm(url string, fields map[string]string) (string, error) {
-	var body bytes.Buffer
-	w := multipart.NewWriter(&body)
+// postForm sends an application/x-www-form-urlencoded POST request to rawURL with
+// the given fields and returns the response body as a string.
+// This matches the encoding used by the official SUBMAIL Go SDK.
+func postForm(rawURL string, fields map[string]string) (string, error) {
+	form := url.Values{}
 	for key, val := range fields {
-		if err := w.WriteField(key, val); err != nil {
-			return "", fmt.Errorf("writing field %q: %w", key, err)
-		}
-	}
-	if err := w.Close(); err != nil {
-		return "", fmt.Errorf("closing multipart writer: %w", err)
+		form.Set(key, val)
 	}
 
-	resp, err := http.Post(url, w.FormDataContentType(), &body) //nolint:noctx
+	resp, err := http.Post(rawURL, "application/x-www-form-urlencoded;charset=utf-8", strings.NewReader(form.Encode())) //nolint:noctx
 	if err != nil {
-		return "", fmt.Errorf("POST %s: %w", url, err)
+		return "", fmt.Errorf("POST %s: %w", rawURL, err)
 	}
 	defer resp.Body.Close()
 
@@ -140,6 +131,10 @@ func sendSMSNormal(to, content string) error {
 // sendSMSMD5 sends an SMS using the MD5-signed (sign_version=2) authentication mode.
 // A server-issued timestamp is fetched first so that the signature is time-bound,
 // making it significantly harder to replay intercepted requests.
+//
+// Important: "content" is intentionally added to the params map AFTER the signature
+// is computed — this matches the official SUBMAIL SDK behaviour where the payload
+// fields do not participate in the signature calculation.
 func sendSMSMD5(to, content string) error {
 	fmt.Println("=== MD5 Signature Mode ===")
 
@@ -148,15 +143,18 @@ func sendSMSMD5(to, content string) error {
 		return fmt.Errorf("getting timestamp: %w", err)
 	}
 
+	// Build the params that participate in the signature.
 	params := map[string]string{
 		"appid":        APPID,
 		"to":           to,
-		"content":      content,
 		"timestamp":    timestamp,
 		"sign_type":    "md5",
 		"sign_version": "2",
 	}
 	params["signature"] = buildMD5Signature(params)
+
+	// Add payload fields only after the signature has been computed.
+	params["content"] = content
 
 	result, err := postForm(SMSSendAPI, params)
 	if err != nil {
