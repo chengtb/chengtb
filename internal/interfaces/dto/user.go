@@ -16,6 +16,9 @@ type UpdateUserRequest struct {
 }
 
 // ErrorResponse is the standard error JSON envelope returned by the API.
+// Code is the application-level numeric error code for programmatic use;
+// Error carries the localised, human-readable message.
 type ErrorResponse struct {
+	Code  int    `json:"code"`
 	Error string `json:"error"`
 }

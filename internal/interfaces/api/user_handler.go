@@ -7,7 +7,6 @@ import (
 	appuser "github.com/chengtb/chengtb/internal/application/user"
 	"github.com/chengtb/chengtb/internal/infrastructure/messaging"
 	"github.com/chengtb/chengtb/internal/interfaces/dto"
-	apperrors "github.com/chengtb/chengtb/pkg/errors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -35,7 +34,7 @@ func (h *UserHandler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *UserHandler) createUser(c *gin.Context) {
 	var req dto.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		respondError(c, err)
 		return
 	}
 	result, err := h.client.CreateUser(appuser.CreateUserCommand{
@@ -44,7 +43,7 @@ func (h *UserHandler) createUser(c *gin.Context) {
 		Email: req.Email,
 	})
 	if err != nil {
-		c.JSON(apperrors.HTTPStatus(err), dto.ErrorResponse{Error: err.Error()})
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, result)
@@ -54,7 +53,7 @@ func (h *UserHandler) createUser(c *gin.Context) {
 func (h *UserHandler) listUsers(c *gin.Context) {
 	users, err := h.client.ListUsers()
 	if err != nil {
-		c.JSON(apperrors.HTTPStatus(err), dto.ErrorResponse{Error: err.Error()})
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, users)
@@ -64,7 +63,7 @@ func (h *UserHandler) listUsers(c *gin.Context) {
 func (h *UserHandler) getUser(c *gin.Context) {
 	user, err := h.client.GetUser(appuser.GetUserQuery{ID: c.Param("id")})
 	if err != nil {
-		c.JSON(apperrors.HTTPStatus(err), dto.ErrorResponse{Error: err.Error()})
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, user)
@@ -74,7 +73,7 @@ func (h *UserHandler) getUser(c *gin.Context) {
 func (h *UserHandler) updateUser(c *gin.Context) {
 	var req dto.UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		respondError(c, err)
 		return
 	}
 	result, err := h.client.UpdateUser(appuser.UpdateUserCommand{
@@ -83,7 +82,7 @@ func (h *UserHandler) updateUser(c *gin.Context) {
 		Email: req.Email,
 	})
 	if err != nil {
-		c.JSON(apperrors.HTTPStatus(err), dto.ErrorResponse{Error: err.Error()})
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, result)
@@ -92,7 +91,7 @@ func (h *UserHandler) updateUser(c *gin.Context) {
 // deleteUser handles DELETE /users/:id
 func (h *UserHandler) deleteUser(c *gin.Context) {
 	if err := h.client.DeleteUser(appuser.DeleteUserCommand{ID: c.Param("id")}); err != nil {
-		c.JSON(apperrors.HTTPStatus(err), dto.ErrorResponse{Error: err.Error()})
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)

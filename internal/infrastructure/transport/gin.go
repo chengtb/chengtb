@@ -5,12 +5,16 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/chengtb/chengtb/pkg/i18n"
 	"github.com/chengtb/chengtb/pkg/logger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
-// NewEngine creates a Gin engine with logger, recovery and CORS middleware.
+// LocaleKey is the gin.Context key used to store the resolved locale string.
+const LocaleKey = "locale"
+
+// NewEngine creates a Gin engine with logger, recovery, CORS and locale middleware.
 func NewEngine(debug bool) *gin.Engine {
 	if !debug {
 		gin.SetMode(gin.ReleaseMode)
@@ -20,6 +24,7 @@ func NewEngine(debug bool) *gin.Engine {
 	r.Use(zapLogger())
 	r.Use(gin.Recovery())
 	r.Use(cors())
+	r.Use(localeMiddleware())
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
@@ -58,6 +63,17 @@ func cors() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}
+		c.Next()
+	}
+}
+
+// localeMiddleware reads the Accept-Language request header, resolves it to a
+// supported locale (en / zh) and stores the result in the gin.Context so that
+// downstream handlers can produce localised error responses.
+func localeMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		locale := i18n.ParseLocale(c.GetHeader("Accept-Language"))
+		c.Set(LocaleKey, locale)
 		c.Next()
 	}
 }
