@@ -6,6 +6,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/nats-io/nats.go v1.49.0
 	go.uber.org/zap v1.27.1
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
@@ -41,5 +42,4 @@ require (
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
-	google.golang.org/protobuf v1.36.10 // indirect
 )
