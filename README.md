@@ -3,7 +3,7 @@
 基于 **Go** 语言，采用 **领域驱动设计（DDD）** 规范搭建的微服务基础框架。
 
 - 🌐 **API 网关**：使用 [Gin](https://github.com/gin-gonic/gin) 提供 RESTful HTTP 接口
-- 📨 **服务通信**：使用 [NATS](https://nats.io/) Request-Reply 模式实现微服务间通信
+- 📨 **服务通信**：使用 [NATS](https://nats.io/) Request-Reply 模式实现微服务间通信，消息载荷采用 **[Protocol Buffers](https://protobuf.dev/)** 二进制编码
 - 📝 **日志**：使用 [Zap](https://github.com/uber-go/zap) 结构化日志
 - 🏗️ **架构**：严格遵循 DDD 分层架构（Domain → Application → Infrastructure → Interfaces）
 
@@ -17,6 +17,8 @@
 │   ├── api/        # API 网关入口（Gin HTTP 服务器）
 │   └── service/    # User 微服务入口（NATS 订阅者）
 ├── config/         # 环境变量配置
+├── proto/
+│   └── user.proto  # Protobuf Schema 定义（请求/响应消息 + Reply 信封）
 ├── internal/
 │   ├── domain/
 │   │   └── user/   # 领域层：实体、值对象、仓储接口、领域服务、领域事件
@@ -26,9 +28,11 @@
 │   │   ├── messaging/    # NATS 连接、发布者（Client）、订阅者（Subscriber）
 │   │   ├── persistence/  # 仓储实现（内存）
 │   │   └── transport/    # Gin 引擎初始化及中间件
-│   └── interfaces/
-│       ├── api/    # HTTP 路由和处理器
-│       └── dto/    # 请求/响应数据传输对象
+│   ├── interfaces/
+│   │   ├── api/    # HTTP 路由和处理器
+│   │   └── dto/    # 请求/响应数据传输对象
+│   └── pb/
+│       └── user.pb.go    # 由 protoc 自动生成的 Go 代码（勿手动修改）
 └── pkg/
     ├── errors/     # 统一错误类型与 HTTP 状态码映射
     └── logger/     # Zap 日志封装
@@ -54,6 +58,120 @@ HTTP 请求
     ▼
 [Repository]
 ```
+
+## Protobuf 消息格式
+
+NATS 通道上的所有消息均使用 **Protocol Buffers（proto3）** 进行二进制序列化，Schema 定义位于 [`proto/user.proto`](proto/user.proto)，对应的 Go 代码由 `protoc` 自动生成到 [`internal/pb/user.pb.go`](internal/pb/user.pb.go)。
+
+### 消息定义
+
+#### 请求消息（客户端 → 微服务）
+
+| NATS Subject    | 消息类型               | 字段                        |
+|----------------|----------------------|----------------------------|
+| `user.create`  | `CreateUserRequest`  | `id`, `name`, `email`      |
+| `user.get`     | `GetUserRequest`     | `id`                       |
+| `user.list`    | `ListUsersRequest`   | （无字段）                   |
+| `user.update`  | `UpdateUserRequest`  | `id`, `name`, `email`      |
+| `user.delete`  | `DeleteUserRequest`  | `id`                       |
+
+#### 响应消息（微服务 → 客户端）
+
+| 消息类型     | 字段                                                                   |
+|------------|----------------------------------------------------------------------|
+| `User`     | `id`, `name`, `email`, `created_at_unix`（纳秒时间戳）, `updated_at_unix` |
+| `UserList` | `users`（`User` 列表）                                                  |
+| `Empty`    | （无字段，用于无返回值操作，如删除）                                         |
+
+### Reply 信封协议
+
+每一条 NATS 响应都包裹在统一的 `Reply` 信封中：
+
+```protobuf
+message Reply {
+  int32  error_code    = 1;  // 0 = 成功，非 0 = 错误
+  string error_message = 2;  // 错误时携带可读描述
+  bytes  data          = 3;  // 成功时携带 proto 序列化的响应消息
+}
+```
+
+**成功响应**示例（以 `GetUser` 为例）：
+
+```
+Reply {
+  error_code    = 0
+  error_message = ""
+  data          = <proto.Marshal(User{id:"1", name:"Alice", ...})>
+}
+```
+
+**错误响应**示例：
+
+```
+Reply {
+  error_code    = 1
+  error_message = "user not found"
+  data          = <空>
+}
+```
+
+### 代码分层
+
+```
+proto/user.proto              ← Schema 权威来源（手动维护）
+    │
+    │ protoc 生成
+    ▼
+internal/pb/user.pb.go        ← 自动生成（勿手动修改）
+    │
+    ├── internal/infrastructure/messaging/subscriber.go
+    │       proto.Unmarshal(msg.Data, &req)   ← 解码请求
+    │       proto.Marshal(Reply{...})         ← 编码响应
+    │
+    └── internal/infrastructure/messaging/publisher.go
+            proto.Marshal(req)                ← 编码请求
+            proto.Unmarshal(reply.Data, &out) ← 解码响应
+```
+
+### 如何重新生成 Protobuf 代码
+
+修改 `proto/user.proto` 之后，执行以下命令重新生成 Go 代码：
+
+**1. 安装工具链（仅需一次）**
+
+```bash
+# 安装 protoc 编译器
+# macOS
+brew install protobuf
+# Ubuntu / Debian
+sudo apt-get install -y protobuf-compiler
+
+# 安装 Go 插件
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+```
+
+**2. 生成代码**
+
+```bash
+# 在项目根目录执行
+protoc \
+  --go_out=. \
+  --go_opt=module=github.com/chengtb/chengtb \
+  proto/user.proto
+```
+
+生成的文件位于 `internal/pb/user.pb.go`，**请将其提交到版本库**，以避免使用者需要在本地安装 `protoc`。
+
+### 扩展消息定义
+
+如需新增消息（例如支持新的业务操作），步骤如下：
+
+1. 在 `proto/user.proto` 中添加新的 `message` 定义
+2. 运行上述 `protoc` 命令重新生成 `internal/pb/user.pb.go`
+3. 在 `subscriber.go` 中注册新的 NATS Subject 和处理函数
+4. 在 `publisher.go` 中添加对应的客户端方法
+
+---
 
 ## 快速开始
 
