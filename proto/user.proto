@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "github.com/chengtb/chengtb/internal/pb;pb";
+
+// ---- Request messages -------------------------------------------------------
+
+// CreateUserRequest is sent on the user.create NATS subject.
+message CreateUserRequest {
+  string id    = 1;
+  string name  = 2;
+  string email = 3;
+}
+
+// GetUserRequest is sent on the user.get NATS subject.
+message GetUserRequest {
+  string id = 1;
+}
+
+// ListUsersRequest is sent on the user.list NATS subject.
+message ListUsersRequest {}
+
+// UpdateUserRequest is sent on the user.update NATS subject.
+message UpdateUserRequest {
+  string id    = 1;
+  string name  = 2;
+  string email = 3;
+}
+
+// DeleteUserRequest is sent on the user.delete NATS subject.
+message DeleteUserRequest {
+  string id = 1;
+}
+
+// ---- Response messages ------------------------------------------------------
+
+// User is the read model returned for a single user.
+message User {
+  string id                = 1;
+  string name              = 2;
+  string email             = 3;
+  int64  created_at_unix   = 4; // UTC Unix timestamp in nanoseconds
+  int64  updated_at_unix   = 5; // UTC Unix timestamp in nanoseconds
+}
+
+// UserList wraps a list of User messages.
+message UserList {
+  repeated User users = 1;
+}
+
+// Empty is returned by operations that produce no payload (e.g. delete).
+message Empty {}
+
+// ---- Transport envelope -----------------------------------------------------
+
+// Reply is the envelope for every NATS response.
+//   error_code == 0  →  success; data holds proto-marshaled payload.
+//   error_code != 0  →  error; error_message describes what went wrong.
+message Reply {
+  int32  error_code    = 1;
+  string error_message = 2;
+  bytes  data          = 3;
+}
