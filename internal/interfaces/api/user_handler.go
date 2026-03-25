@@ -2,12 +2,11 @@
 package api
 
 import (
-	"net/http"
-
 	appuser "github.com/chengtb/chengtb/internal/application/user"
 	"github.com/chengtb/chengtb/internal/infrastructure/messaging"
 	"github.com/chengtb/chengtb/internal/interfaces/dto"
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 // UserHandler handles HTTP requests for the User resource.
@@ -46,7 +45,7 @@ func (h *UserHandler) createUser(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, result)
+	respondOK(c, http.StatusCreated, result)
 }
 
 // listUsers handles GET /users
@@ -56,7 +55,7 @@ func (h *UserHandler) listUsers(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, users)
+	respondOK(c, http.StatusOK, users)
 }
 
 // getUser handles GET /users/:id
@@ -66,7 +65,7 @@ func (h *UserHandler) getUser(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, user)
+	respondOK(c, http.StatusOK, user)
 }
 
 // updateUser handles PUT /users/:id
@@ -85,7 +84,7 @@ func (h *UserHandler) updateUser(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	respondOK(c, http.StatusOK, result)
 }
 
 // deleteUser handles DELETE /users/:id
@@ -94,5 +93,5 @@ func (h *UserHandler) deleteUser(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.Status(http.StatusNoContent)
+	respondOK(c, http.StatusOK, nil)
 }

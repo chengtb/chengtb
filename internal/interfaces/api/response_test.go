@@ -33,14 +33,16 @@ func newTestContext(locale string) (*gin.Context, *httptest.ResponseRecorder) {
 // (which lives in response.go, same package).
 func respondErrorHelper(c *gin.Context, err error) { respondError(c, err) }
 
-func parseErrorResponse(t *testing.T, w *httptest.ResponseRecorder) dto.ErrorResponse {
+func parseResponse(t *testing.T, w *httptest.ResponseRecorder) dto.Response {
 	t.Helper()
-	var resp dto.ErrorResponse
+	var resp dto.Response
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
 	return resp
 }
+
+// ---- respondError tests ----
 
 func TestRespondError_AppError_English(t *testing.T) {
 	c, w := newTestContext("en")
@@ -50,12 +52,15 @@ func TestRespondError_AppError_English(t *testing.T) {
 	if w.Code != http.StatusNotFound {
 		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
 	}
-	resp := parseErrorResponse(t, w)
-	if resp.Error != "resource not found" {
-		t.Errorf("error = %q, want %q", resp.Error, "resource not found")
-	}
+	resp := parseResponse(t, w)
 	if resp.Code != int(apperrors.CodeNotFound) {
 		t.Errorf("code = %d, want %d", resp.Code, apperrors.CodeNotFound)
+	}
+	if resp.Message != "resource not found" {
+		t.Errorf("message = %q, want %q", resp.Message, "resource not found")
+	}
+	if resp.Data != nil {
+		t.Errorf("data = %v, want nil", resp.Data)
 	}
 }
 
@@ -67,9 +72,9 @@ func TestRespondError_AppError_Chinese(t *testing.T) {
 	if w.Code != http.StatusNotFound {
 		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
 	}
-	resp := parseErrorResponse(t, w)
-	if resp.Error != "资源不存在" {
-		t.Errorf("error = %q, want %q", resp.Error, "资源不存在")
+	resp := parseResponse(t, w)
+	if resp.Message != "资源不存在" {
+		t.Errorf("message = %q, want %q", resp.Message, "资源不存在")
 	}
 }
 
@@ -81,12 +86,12 @@ func TestRespondError_BindingError_English(t *testing.T) {
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
-	resp := parseErrorResponse(t, w)
-	if resp.Error != "invalid argument" {
-		t.Errorf("error = %q, want %q", resp.Error, "invalid argument")
-	}
+	resp := parseResponse(t, w)
 	if resp.Code != int(apperrors.CodeInvalidArg) {
 		t.Errorf("code = %d, want %d", resp.Code, apperrors.CodeInvalidArg)
+	}
+	if resp.Message != "invalid argument" {
+		t.Errorf("message = %q, want %q", resp.Message, "invalid argument")
 	}
 }
 
@@ -97,9 +102,9 @@ func TestRespondError_BindingError_Chinese(t *testing.T) {
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
 	}
-	resp := parseErrorResponse(t, w)
-	if resp.Error != "请求参数无效" {
-		t.Errorf("error = %q, want %q", resp.Error, "请求参数无效")
+	resp := parseResponse(t, w)
+	if resp.Message != "请求参数无效" {
+		t.Errorf("message = %q, want %q", resp.Message, "请求参数无效")
 	}
 }
 
@@ -111,9 +116,9 @@ func TestRespondError_Conflict_Chinese(t *testing.T) {
 	if w.Code != http.StatusConflict {
 		t.Errorf("status = %d, want %d", w.Code, http.StatusConflict)
 	}
-	resp := parseErrorResponse(t, w)
-	if resp.Error != "资源冲突" {
-		t.Errorf("error = %q, want %q", resp.Error, "资源冲突")
+	resp := parseResponse(t, w)
+	if resp.Message != "资源冲突" {
+		t.Errorf("message = %q, want %q", resp.Message, "资源冲突")
 	}
 }
 
@@ -124,9 +129,58 @@ func TestRespondError_NoLocaleKey_DefaultsToEnglish(t *testing.T) {
 	err := apperrors.New(apperrors.CodeInternal, "db down")
 	respondErrorHelper(c, err)
 
-	resp := parseErrorResponse(t, w)
-	if resp.Error != "internal server error" {
-		t.Errorf("error = %q, want %q", resp.Error, "internal server error")
+	resp := parseResponse(t, w)
+	if resp.Message != "internal server error" {
+		t.Errorf("message = %q, want %q", resp.Message, "internal server error")
 	}
 }
 
+// ---- respondOK tests ----
+
+func TestRespondOK_WithData(t *testing.T) {
+	c, w := newTestContext("en")
+	respondOK(c, http.StatusOK, map[string]string{"id": "1", "name": "Alice"})
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+	resp := parseResponse(t, w)
+	if resp.Code != 0 {
+		t.Errorf("code = %d, want 0", resp.Code)
+	}
+	if resp.Message != "ok" {
+		t.Errorf("message = %q, want %q", resp.Message, "ok")
+	}
+	if resp.Data == nil {
+		t.Error("data is nil, want non-nil payload")
+	}
+}
+
+func TestRespondOK_Created(t *testing.T) {
+	c, w := newTestContext("en")
+	respondOK(c, http.StatusCreated, map[string]string{"id": "42"})
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusCreated)
+	}
+	resp := parseResponse(t, w)
+	if resp.Code != 0 {
+		t.Errorf("code = %d, want 0", resp.Code)
+	}
+}
+
+func TestRespondOK_NilData(t *testing.T) {
+	c, w := newTestContext("en")
+	respondOK(c, http.StatusOK, nil)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+	resp := parseResponse(t, w)
+	if resp.Code != 0 {
+		t.Errorf("code = %d, want 0", resp.Code)
+	}
+	if resp.Message != "ok" {
+		t.Errorf("message = %q, want %q", resp.Message, "ok")
+	}
+}
