@@ -163,6 +163,13 @@ func GetOrderStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, order)
 }
 
+// GetCategories GET /api/customer/categories
+func GetCategories(c *gin.Context) {
+	var cats []models.Category
+	database.DB.Order("sort_order ASC").Find(&cats)
+	c.JSON(http.StatusOK, cats)
+}
+
 // GetDishes GET /api/customer/dishes
 func GetDishes(c *gin.Context) {
 	var dishes []models.Dish

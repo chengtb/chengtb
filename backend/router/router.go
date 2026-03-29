@@ -26,6 +26,7 @@ func Setup() *gin.Engine {
 		customer.POST("/cart/session/:sessionId/submit", handlers.SubmitOrder)
 		customer.GET("/order/:orderId", handlers.GetOrderStatus)
 		customer.GET("/dishes", handlers.GetDishes)
+		customer.GET("/categories", handlers.GetCategories)
 		customer.GET("/dishes/category/:categoryId", handlers.GetDishesByCategory)
 	}
 
