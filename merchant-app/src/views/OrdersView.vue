@@ -33,7 +33,7 @@
       :headers="headers"
       :items="orders"
       :loading="loading"
-      item-value="id"
+      item-value="order_id"
     >
       <template #item.total_amount="{ item }">
         ¥{{ (item.total_amount / 100).toFixed(2) }}
@@ -55,14 +55,14 @@
     <!-- Order Detail Dialog -->
     <v-dialog v-model="detailDialog" max-width="500">
       <v-card v-if="selectedOrder">
-        <v-card-title>订单 #{{ selectedOrder.id }}</v-card-title>
+        <v-card-title>订单 #{{ selectedOrder.order_id }}</v-card-title>
         <v-card-text>
           <v-list density="compact">
             <v-list-item title="桌号" :subtitle="selectedOrder.table_id" />
             <v-list-item title="状态" :subtitle="statusLabel(selectedOrder.status)" />
             <v-list-item title="金额" :subtitle="`¥${(selectedOrder.total_amount/100).toFixed(2)}`" />
             <v-divider class="my-2" />
-            <v-list-item v-for="item in selectedOrder.items" :key="item.id"
+            <v-list-item v-for="item in selectedOrder.items" :key="item.item_id"
               :title="item.dish?.name || '未知'"
               :subtitle="`x${item.quantity}  备注: ${item.note || '无'}`"
             />
@@ -125,12 +125,12 @@ const selectedChef = ref(null)
 const dispatching = ref(false)
 
 const headers = [
-  { title: 'ID', key: 'id', width: 60 },
+  { title: 'ID', key: 'order_id', width: 60 },
   { title: '桌号', key: 'table_id', width: 80 },
   { title: '金额', key: 'total_amount', width: 100 },
   { title: '状态', key: 'status', width: 120 },
   { title: '下单时间', key: 'created_at' },
-  { title: '操作', key: 'actions', sortable: false, width: 180 },
+  { title: '操作', key: 'actions', sortable: false, width: 220 },
 ]
 
 const statusOptions = ['pending', 'cooking', 'done', 'paid']
@@ -169,7 +169,7 @@ function openStatusDialog(item) {
 
 async function updateStatus() {
   try {
-    await api.put(`/orders/${selectedOrder.value.id}/status`, { status: newStatus.value })
+    await api.put(`/orders/${selectedOrder.value.order_id}/status`, { status: newStatus.value })
     await fetchOrders()
     statusDialog.value = false
   } catch {}
@@ -177,7 +177,7 @@ async function updateStatus() {
 
 async function recordPayment(item) {
   try {
-    await api.post(`/orders/${item.id}/pay`)
+    await api.post(`/orders/${item.order_id}/payment`)
     await fetchOrders()
   } catch {}
 }
@@ -195,7 +195,7 @@ async function openDispatch(item) {
 async function autoDispatch() {
   dispatching.value = true
   try {
-    await api.post(`/orders/${selectedOrder.value.id}/dispatch`)
+    await api.post(`/orders/${selectedOrder.value.order_id}/dispatch`)
     dispatchDialog.value = false
   } catch {} finally {
     dispatching.value = false
@@ -204,7 +204,7 @@ async function autoDispatch() {
 
 async function manualDispatch() {
   try {
-    await api.post(`/orders/${selectedOrder.value.id}/dispatch`, { chef_id: selectedChef.value })
+    await api.post(`/orders/${selectedOrder.value.order_id}/dispatch`, { chef_id: selectedChef.value })
     dispatchDialog.value = false
   } catch {}
 }
