@@ -5,7 +5,7 @@
       <v-btn color="primary" prepend-icon="mdi-plus" @click="openAdd">添加菜谱</v-btn>
     </div>
 
-    <v-data-table :headers="headers" :items="recipes" :loading="loading" item-value="id" group-by="dish_name">
+    <v-data-table :headers="headers" :items="recipes" :loading="loading" item-value="id" :group-by="[{ key: 'dish_name' }]">
       <template #item.status="{ item }">
         <v-chip :color="item.status === 'active' ? 'success' : 'grey'" size="small">
           {{ item.status === 'active' ? '启用' : '停用' }}
