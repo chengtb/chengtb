@@ -15,6 +15,7 @@
       item-value="chef_id"
       show-expand
       v-model:expanded="expanded"
+      @update:expanded="onExpandChanged"
     >
       <template #item.recipes="{ item }">
         <v-chip size="small" :color="(item.recipes || []).length ? 'primary' : 'default'">
@@ -29,9 +30,10 @@
         <tr>
           <td :colspan="columns.length" class="pa-0">
             <v-sheet class="pa-4 bg-grey-lighten-5">
+              <!-- Recipes section -->
               <div class="text-subtitle-2 mb-3 text-medium-emphasis">擅长菜谱</div>
-              <div v-if="!(item.recipes || []).length" class="text-body-2 text-disabled">暂未关联菜谱</div>
-              <v-table v-else density="compact" class="rounded border">
+              <div v-if="!(item.recipes || []).length" class="text-body-2 text-disabled mb-4">暂未关联菜谱</div>
+              <v-table v-else density="compact" class="rounded border mb-4">
                 <thead>
                   <tr>
                     <th>菜谱ID</th>
@@ -50,6 +52,41 @@
                         {{ r.is_enabled ? '启用' : '停用' }}
                       </v-chip>
                     </td>
+                  </tr>
+                </tbody>
+              </v-table>
+
+              <!-- Task queue section -->
+              <div class="text-subtitle-2 mb-3 text-medium-emphasis">当前任务队列</div>
+              <div v-if="tasksLoading[item.chef_id]" class="d-flex align-center gap-2 mb-4">
+                <v-progress-circular indeterminate size="20" width="2" />
+                <span class="text-body-2 text-disabled">加载中…</span>
+              </div>
+              <div v-else-if="!(chefTasks[item.chef_id] || []).length" class="text-body-2 text-disabled mb-4">暂无进行中的任务</div>
+              <v-table v-else density="compact" class="rounded border mb-2">
+                <thead>
+                  <tr>
+                    <th>任务ID</th>
+                    <th>菜品</th>
+                    <th>份量</th>
+                    <th>优先级</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="t in chefTasks[item.chef_id]" :key="t.task_id">
+                    <td>{{ t.task_id }}</td>
+                    <td>{{ t.dish?.name || '—' }}</td>
+                    <td>{{ t.total_portion }}</td>
+                    <td>
+                      <v-chip v-if="t.priority > 0" color="error" size="x-small">VIP</v-chip>
+                      <span v-else class="text-caption text-grey">普通</span>
+                    </td>
+                    <td>
+                      <v-chip :color="taskStatusColor(t.status)" size="x-small">{{ taskStatusLabel(t.status) }}</v-chip>
+                    </td>
+                    <td>{{ formatTime(t.created_at) }}</td>
                   </tr>
                 </tbody>
               </v-table>
@@ -98,6 +135,16 @@ const allRecipes = ref([])
 const expanded = ref([])
 const form = ref({ chef_id: null, name: '', max_load: 5, recipe_ids: [] })
 
+// Per-chef task cache
+const chefTasks = ref({})
+const tasksLoading = ref({})
+
+const taskStatusLabelMap = { pending: '待开始', cooking: '烹饪中', done: '完成', cancelled: '取消' }
+const taskStatusColorMap = { pending: 'warning', cooking: 'info', done: 'success', cancelled: 'grey' }
+function taskStatusLabel(s) { return taskStatusLabelMap[s] || s }
+function taskStatusColor(s) { return taskStatusColorMap[s] || 'default' }
+function formatTime(ts) { return ts ? new Date(ts).toLocaleString('zh-CN') : '' }
+
 const headers = [
   { title: 'ID', key: 'chef_id', width: 60 },
   { title: '姓名', key: 'name' },
@@ -114,6 +161,26 @@ async function fetchChefs() {
     chefs.value = res.data || []
   } finally {
     loading.value = false
+  }
+}
+
+async function loadChefTasks(chefId) {
+  tasksLoading.value = { ...tasksLoading.value, [chefId]: true }
+  try {
+    const res = await api.get(`/chefs/${chefId}/tasks`)
+    chefTasks.value = { ...chefTasks.value, [chefId]: res.data || [] }
+  } catch {
+    chefTasks.value = { ...chefTasks.value, [chefId]: [] }
+  } finally {
+    tasksLoading.value = { ...tasksLoading.value, [chefId]: false }
+  }
+}
+
+function onExpandChanged(newExpanded) {
+  for (const chefId of newExpanded) {
+    if (chefTasks.value[chefId] === undefined) {
+      loadChefTasks(chefId)
+    }
   }
 }
 
@@ -157,3 +224,4 @@ onMounted(async () => {
   } catch {}
 })
 </script>
+

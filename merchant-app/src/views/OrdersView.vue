@@ -47,8 +47,10 @@
         {{ formatTime(item.created_at) }}
       </template>
       <template #item.actions="{ item }">
-        <v-btn size="small" icon="mdi-update" variant="text" title="更新状态" @click.stop="openStatusDialog(item)" />
-        <v-btn size="small" icon="mdi-cash" variant="text" title="结账" @click.stop="openPaymentDialog(item)" />
+        <div class="d-flex align-center" style="white-space: nowrap">
+          <v-btn size="small" icon="mdi-update" variant="text" title="更新状态" @click.stop="openStatusDialog(item)" />
+          <v-btn size="small" icon="mdi-cash" variant="text" title="结账" @click.stop="openPaymentDialog(item)" />
+        </div>
       </template>
 
       <template #expanded-row="{ columns, item }">

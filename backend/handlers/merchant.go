@@ -421,6 +421,17 @@ func ListTasks(c *gin.Context) {
 	c.JSON(http.StatusOK, tasks)
 }
 
+// ListChefTasks GET /api/merchant/chefs/:chefId/tasks
+func ListChefTasks(c *gin.Context) {
+	chefID, _ := strconv.Atoi(c.Param("chefId"))
+	var tasks []models.CookingTask
+	database.DB.Preload("Recipe").Preload("Dish").
+		Where("chef_id = ? AND status IN ?", chefID, []string{"pending", "cooking"}).
+		Order("priority DESC, created_at ASC").
+		Find(&tasks)
+	c.JSON(http.StatusOK, tasks)
+}
+
 // ReassignTask PUT /api/merchant/tasks/:taskId/reassign
 func ReassignTask(c *gin.Context) {
 	taskID, _ := strconv.Atoi(c.Param("taskId"))

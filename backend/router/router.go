@@ -50,6 +50,7 @@ func Setup() *gin.Engine {
 		merchant.GET("/chefs", handlers.ListChefs)
 		merchant.POST("/chefs", handlers.CreateChef)
 		merchant.PUT("/chefs/:chefId", handlers.UpdateChef)
+		merchant.GET("/chefs/:chefId/tasks", handlers.ListChefTasks)
 
 		merchant.GET("/recipes", handlers.ListRecipes)
 		merchant.POST("/recipes", handlers.CreateRecipe)
