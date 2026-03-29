@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: restaurant-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: restaurant
+      MYSQL_USER: restaurant
+      MYSQL_PASSWORD: restaurant123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: restaurant-backend
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: restaurant
+      DB_PASSWORD: restaurant123
+      DB_NAME: restaurant
+      SERVER_PORT: 8080
+      DISPATCH_INTERVAL: 30
+      TIME_WINDOW_MINUTES: 5
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  customer-app:
+    build:
+      context: ./customer-app
+      dockerfile: Dockerfile
+    container_name: restaurant-customer
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+
+  merchant-app:
+    build:
+      context: ./merchant-app
+      dockerfile: Dockerfile
+    container_name: restaurant-merchant
+    ports:
+      - "3002:80"
+    depends_on:
+      - backend
+
+  chef-app:
+    build:
+      context: ./chef-app
+      dockerfile: Dockerfile
+    container_name: restaurant-chef
+    ports:
+      - "3003:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
