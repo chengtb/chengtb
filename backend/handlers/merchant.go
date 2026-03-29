@@ -206,7 +206,10 @@ func UpdateChef(c *gin.Context) {
 // ListRecipes GET /api/merchant/recipes
 func ListRecipes(c *gin.Context) {
 	var recipes []models.Recipe
-	database.DB.Preload("Dish").Find(&recipes)
+	// Joins("Dish") uses a SQL JOIN instead of a separate preload query, so
+	// the database enforces recipe.dish_id = dish.dish_id, preventing any
+	// in-memory mapping mismatch between the top-level dish_id and dish.dish_id.
+	database.DB.Joins("Dish").Find(&recipes)
 	c.JSON(http.StatusOK, recipes)
 }
 
