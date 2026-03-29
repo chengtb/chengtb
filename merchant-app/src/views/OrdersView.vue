@@ -91,7 +91,7 @@
       <v-card>
         <v-card-title>派发任务</v-card-title>
         <v-card-text>
-          <v-select v-model="selectedChef" :items="chefs" item-title="name" item-value="id" label="选择厨师 (手动)" clearable variant="outlined" class="mb-3" />
+          <v-select v-model="selectedChef" :items="chefs" item-title="name" item-value="chef_id" label="选择厨师 (手动)" clearable variant="outlined" class="mb-3" />
           <v-btn block color="success" @click="autoDispatch" :loading="dispatching">自动派发</v-btn>
         </v-card-text>
         <v-card-actions>

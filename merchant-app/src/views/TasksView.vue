@@ -18,11 +18,7 @@
           v-model="filterChef"
           :items="chefs"
           item-title="name"
-          item-value="id"
-          label="厨师"
-          clearable
-          density="compact"
-          variant="outlined"
+          item-value="chef_id"
           @update:model-value="fetchTasks"
         />
       </v-col>
