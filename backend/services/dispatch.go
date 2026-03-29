@@ -2,6 +2,7 @@ package services
 
 import (
 "encoding/json"
+"fmt"
 "log"
 "sort"
 "time"
@@ -255,4 +256,77 @@ database.DB.Model(&models.Chef{}).Where("chef_id = ?", newChefID).
 UpdateColumn("current_load", database.DB.Raw("current_load + ?", task.TotalPortion))
 database.DB.Preload("Chef").Preload("Recipe").Preload("Dish").First(&task, taskID)
 return &task, nil
+}
+
+// ManualDispatchItem dispatches a single pending order item to a chef.
+// If chefIDOverride > 0, assigns to that specific chef; otherwise auto-assigns the best available chef.
+func ManualDispatchItem(orderID, itemID, chefIDOverride int) (*DispatchResult, error) {
+var item models.OrderItem
+if err := database.DB.Where("item_id = ? AND order_id = ?", itemID, orderID).First(&item).Error; err != nil {
+return nil, fmt.Errorf("item not found: %w", err)
+}
+if item.Status != models.OrderItemStatusPending {
+return nil, fmt.Errorf("item is not in pending status")
+}
+var order models.Order
+if err := database.DB.First(&order, orderID).Error; err != nil {
+return nil, fmt.Errorf("order not found: %w", err)
+}
+
+var recipes []models.Recipe
+database.DB.Where("dish_id = ? AND is_enabled = 1", item.DishID).Order("portion DESC").Find(&recipes)
+if len(recipes) == 0 {
+return nil, fmt.Errorf("no recipe found for dish %d", item.DishID)
+}
+recipe := findBestRecipe(recipes, item.Quantity, false)
+if recipe == nil {
+recipe = &recipes[0]
+}
+
+var chef *models.Chef
+if chefIDOverride > 0 {
+var c models.Chef
+if err := database.DB.First(&c, chefIDOverride).Error; err != nil {
+return nil, fmt.Errorf("chef %d not found: %w", chefIDOverride, err)
+}
+chef = &c
+} else {
+var err error
+chef, err = assignChef(recipe.RecipeID)
+if err != nil {
+return nil, err
+}
+if chef == nil {
+return nil, fmt.Errorf("no available chef for dish %d", item.DishID)
+}
+}
+
+tableJSON, _ := json.Marshal([]int{order.TableID})
+mergedJSON, _ := json.Marshal([]int{item.ItemID})
+priority := 0
+if order.IsVIP {
+priority = 10
+}
+
+task := models.CookingTask{
+ChefID:       chef.ChefID,
+RecipeID:     recipe.RecipeID,
+DishID:       item.DishID,
+TotalPortion: item.Quantity,
+MergedFrom:   mergedJSON,
+TableIDs:     tableJSON,
+Status:       models.TaskStatusPending,
+Priority:     priority,
+}
+if err := database.DB.Create(&task).Error; err != nil {
+return nil, err
+}
+
+database.DB.Model(&models.Chef{}).Where("chef_id = ?", chef.ChefID).
+UpdateColumn("current_load", chef.CurrentLoad+item.Quantity)
+database.DB.Model(&models.OrderItem{}).Where("item_id = ?", item.ItemID).
+Update("status", models.OrderItemStatusDispatched)
+
+database.DB.Preload("Chef").Preload("Recipe").Preload("Dish").First(&task, task.TaskID)
+return &DispatchResult{Task: &task, Message: "dispatched"}, nil
 }

@@ -45,6 +45,7 @@ func Setup() *gin.Engine {
 		merchant.PUT("/orders/:orderId/status", handlers.UpdateOrderStatus)
 		merchant.POST("/orders/:orderId/payment", handlers.RecordPayment)
 		merchant.POST("/orders/:orderId/dispatch", handlers.DispatchOrder)
+		merchant.POST("/orders/:orderId/items/:itemId/dispatch", handlers.DispatchOrderItem)
 
 		merchant.GET("/chefs", handlers.ListChefs)
 		merchant.POST("/chefs", handlers.CreateChef)

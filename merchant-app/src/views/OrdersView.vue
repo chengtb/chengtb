@@ -30,49 +30,72 @@
     </v-row>
 
     <v-data-table
+      v-model:expanded="expanded"
+      show-expand
       :headers="headers"
       :items="orders"
       :loading="loading"
       item-value="order_id"
     >
       <template #item.total_amount="{ item }">
-        ¥{{ (item.total_amount / 100).toFixed(2) }}
+        ¥{{ Number(item.total_amount).toFixed(2) }}
       </template>
       <template #item.status="{ item }">
-        <v-chip :color="statusColor(item.status)" size="small">{{ statusLabel(item.status) }}</v-chip>
+        <v-chip :color="orderStatusColor(item.status)" size="small">{{ orderStatusLabel(item.status) }}</v-chip>
       </template>
       <template #item.created_at="{ item }">
         {{ formatTime(item.created_at) }}
       </template>
       <template #item.actions="{ item }">
-        <v-btn size="small" icon="mdi-eye" variant="text" @click="viewOrder(item)" />
-        <v-btn size="small" icon="mdi-update" variant="text" @click="openStatusDialog(item)" />
-        <v-btn size="small" icon="mdi-cash" variant="text" @click="recordPayment(item)" />
-        <v-btn size="small" icon="mdi-send" variant="text" @click="openDispatch(item)" />
+        <v-btn size="small" icon="mdi-update" variant="text" title="更新状态" @click.stop="openStatusDialog(item)" />
+        <v-btn size="small" icon="mdi-cash" variant="text" title="结账" @click.stop="openPaymentDialog(item)" />
+      </template>
+
+      <template #expanded-row="{ columns, item }">
+        <tr>
+          <td :colspan="columns.length" class="pa-4 bg-grey-lighten-5">
+            <div class="text-subtitle-2 mb-2 font-weight-bold">菜品明细</div>
+            <v-table density="compact" class="rounded border">
+              <thead>
+                <tr class="bg-grey-lighten-4">
+                  <th class="text-left">菜品</th>
+                  <th class="text-left">数量</th>
+                  <th class="text-left">备注</th>
+                  <th class="text-left">状态</th>
+                  <th class="text-left">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="dish in item.items" :key="dish.item_id">
+                  <td>{{ dish.dish?.name || '未知' }}</td>
+                  <td>x{{ dish.quantity }}</td>
+                  <td>{{ dish.note || '—' }}</td>
+                  <td>
+                    <v-chip :color="itemStatusColor(dish.status)" size="x-small">
+                      {{ itemStatusLabel(dish.status) }}
+                    </v-chip>
+                  </td>
+                  <td>
+                    <v-btn
+                      v-if="dish.status === 'pending'"
+                      size="x-small"
+                      color="primary"
+                      variant="tonal"
+                      prepend-icon="mdi-send"
+                      @click="openItemDispatch(item, dish)"
+                    >派发</v-btn>
+                    <span v-else class="text-grey text-caption">—</span>
+                  </td>
+                </tr>
+                <tr v-if="!item.items?.length">
+                  <td colspan="5" class="text-center text-grey pa-3">暂无菜品</td>
+                </tr>
+              </tbody>
+            </v-table>
+          </td>
+        </tr>
       </template>
     </v-data-table>
-
-    <!-- Order Detail Dialog -->
-    <v-dialog v-model="detailDialog" max-width="500">
-      <v-card v-if="selectedOrder">
-        <v-card-title>订单 #{{ selectedOrder.order_id }}</v-card-title>
-        <v-card-text>
-          <v-list density="compact">
-            <v-list-item title="桌号" :subtitle="selectedOrder.table_id" />
-            <v-list-item title="状态" :subtitle="statusLabel(selectedOrder.status)" />
-            <v-list-item title="金额" :subtitle="`¥${(selectedOrder.total_amount/100).toFixed(2)}`" />
-            <v-divider class="my-2" />
-            <v-list-item v-for="item in selectedOrder.items" :key="item.item_id"
-              :title="item.dish?.name || '未知'"
-              :subtitle="`x${item.quantity}  备注: ${item.note || '无'}`"
-            />
-          </v-list>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer /><v-btn @click="detailDialog = false">关闭</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
 
     <!-- Status Update Dialog -->
     <v-dialog v-model="statusDialog" max-width="360">
@@ -89,18 +112,46 @@
       </v-card>
     </v-dialog>
 
-    <!-- Dispatch Dialog -->
+    <!-- Payment Dialog -->
+    <v-dialog v-model="paymentDialog" max-width="360">
+      <v-card>
+        <v-card-title>确认结账</v-card-title>
+        <v-card-subtitle v-if="selectedOrder">
+          订单 #{{ selectedOrder.order_id }} · ¥{{ Number(selectedOrder.total_amount).toFixed(2) }}
+        </v-card-subtitle>
+        <v-card-text>
+          <v-select v-model="paymentMethod" :items="paymentMethods" label="支付方式" variant="outlined" />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="paymentDialog = false">取消</v-btn>
+          <v-btn color="primary" :disabled="!paymentMethod" @click="recordPayment">确定</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Item Dispatch Dialog -->
     <v-dialog v-model="dispatchDialog" max-width="400">
       <v-card>
-        <v-card-title>派发任务</v-card-title>
+        <v-card-title>派发菜品任务</v-card-title>
+        <v-card-subtitle v-if="selectedItem">
+          {{ selectedItem.dish?.name || '未知' }} x{{ selectedItem.quantity }}
+        </v-card-subtitle>
         <v-card-text>
-          <v-select v-model="selectedChef" :items="chefs" item-title="name" item-value="chef_id" label="选择厨师 (手动)" clearable variant="outlined" class="mb-3" />
-          <v-btn block color="success" @click="autoDispatch" :loading="dispatching">自动派发</v-btn>
+          <v-select
+            v-model="selectedChef"
+            :items="chefs"
+            item-title="name"
+            item-value="chef_id"
+            label="指定厨师（可选，留空则自动分配）"
+            clearable
+            variant="outlined"
+          />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
           <v-btn @click="dispatchDialog = false">取消</v-btn>
-          <v-btn color="primary" @click="manualDispatch" :disabled="!selectedChef">手动派发</v-btn>
+          <v-btn color="primary" :loading="dispatching" @click="dispatchItem">派发</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -115,11 +166,19 @@ const orders = ref([])
 const loading = ref(true)
 const filterStatus = ref('')
 const filterDate = ref('')
-const detailDialog = ref(false)
+const expanded = ref([])
+
+// Order-level dialogs
 const statusDialog = ref(false)
-const dispatchDialog = ref(false)
+const paymentDialog = ref(false)
 const selectedOrder = ref(null)
 const newStatus = ref('')
+const paymentMethod = ref('')
+const paymentMethods = ['现金', '微信', '支付宝', '刷卡']
+
+// Item-level dispatch
+const dispatchDialog = ref(false)
+const selectedItem = ref(null)
 const chefs = ref([])
 const selectedChef = ref(null)
 const dispatching = ref(false)
@@ -127,18 +186,22 @@ const dispatching = ref(false)
 const headers = [
   { title: 'ID', key: 'order_id', width: 60 },
   { title: '桌号', key: 'table_id', width: 80 },
-  { title: '金额', key: 'total_amount', width: 100 },
+  { title: '金额', key: 'total_amount', width: 110 },
   { title: '状态', key: 'status', width: 120 },
   { title: '下单时间', key: 'created_at' },
-  { title: '操作', key: 'actions', sortable: false, width: 220 },
+  { title: '操作', key: 'actions', sortable: false, width: 100 },
 ]
 
-const statusOptions = ['pending', 'cooking', 'done', 'paid']
-const statusLabelMap = { pending: '待处理', cooking: '烹饪中', done: '完成', paid: '已结账' }
-const statusColorMap = { pending: 'warning', cooking: 'info', done: 'success', paid: 'grey' }
+const statusOptions = ['pending', 'cooking', 'completed', 'cancelled']
+const orderStatusLabelMap = { pending: '待处理', cooking: '烹饪中', completed: '完成', cancelled: '已取消' }
+const orderStatusColorMap = { pending: 'warning', cooking: 'info', completed: 'success', cancelled: 'grey' }
+const itemStatusLabelMap = { pending: '待派发', dispatched: '已派发', cooking: '烹饪中', done: '已完成' }
+const itemStatusColorMap = { pending: 'warning', dispatched: 'blue', cooking: 'info', done: 'success' }
 
-function statusLabel(s) { return statusLabelMap[s] || s }
-function statusColor(s) { return statusColorMap[s] || 'default' }
+function orderStatusLabel(s) { return orderStatusLabelMap[s] || s }
+function orderStatusColor(s) { return orderStatusColorMap[s] || 'default' }
+function itemStatusLabel(s) { return itemStatusLabelMap[s] || s }
+function itemStatusColor(s) { return itemStatusColorMap[s] || 'default' }
 function formatTime(ts) { return ts ? new Date(ts).toLocaleString('zh-CN') : '' }
 
 async function fetchOrders() {
@@ -156,11 +219,6 @@ async function fetchOrders() {
   }
 }
 
-function viewOrder(item) {
-  selectedOrder.value = item
-  detailDialog.value = true
-}
-
 function openStatusDialog(item) {
   selectedOrder.value = item
   newStatus.value = item.status
@@ -175,15 +233,23 @@ async function updateStatus() {
   } catch {}
 }
 
-async function recordPayment(item) {
+function openPaymentDialog(item) {
+  selectedOrder.value = item
+  paymentMethod.value = ''
+  paymentDialog.value = true
+}
+
+async function recordPayment() {
   try {
-    await api.post(`/orders/${item.order_id}/payment`)
+    await api.post(`/orders/${selectedOrder.value.order_id}/payment`, { method: paymentMethod.value })
     await fetchOrders()
+    paymentDialog.value = false
   } catch {}
 }
 
-async function openDispatch(item) {
-  selectedOrder.value = item
+async function openItemDispatch(order, dish) {
+  selectedOrder.value = order
+  selectedItem.value = dish
   selectedChef.value = null
   dispatchDialog.value = true
   try {
@@ -192,22 +258,21 @@ async function openDispatch(item) {
   } catch {}
 }
 
-async function autoDispatch() {
+async function dispatchItem() {
   dispatching.value = true
   try {
-    await api.post(`/orders/${selectedOrder.value.order_id}/dispatch`)
+    const body = selectedChef.value ? { chef_id: selectedChef.value } : {}
+    await api.post(
+      `/orders/${selectedOrder.value.order_id}/items/${selectedItem.value.item_id}/dispatch`,
+      body
+    )
+    await fetchOrders()
     dispatchDialog.value = false
   } catch {} finally {
     dispatching.value = false
   }
 }
 
-async function manualDispatch() {
-  try {
-    await api.post(`/orders/${selectedOrder.value.order_id}/dispatch`, { chef_id: selectedChef.value })
-    dispatchDialog.value = false
-  } catch {}
-}
-
 onMounted(fetchOrders)
 </script>
+

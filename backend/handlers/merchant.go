@@ -162,6 +162,22 @@ func DispatchOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, results)
 }
 
+// DispatchOrderItem POST /api/merchant/orders/:orderId/items/:itemId/dispatch
+func DispatchOrderItem(c *gin.Context) {
+	orderID, _ := strconv.Atoi(c.Param("orderId"))
+	itemID, _ := strconv.Atoi(c.Param("itemId"))
+	var req struct {
+		ChefID int `json:"chef_id"`
+	}
+	c.ShouldBindJSON(&req) // body is optional
+	result, err := services.ManualDispatchItem(orderID, itemID, req.ChefID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
 // --- Chef management ---
 
 // ListChefs GET /api/merchant/chefs
