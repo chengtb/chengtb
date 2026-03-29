@@ -130,7 +130,7 @@ async function submitOrder() {
     alert('订单提交成功！')
     router.push(`/table/${tableStore.tableId}/orders`)
   } catch (e) {
-    alert('提交失败，请重试')
+    alert('提交失败：' + (e.response?.data?.error || e.message || '请重试'))
   } finally {
     submitting.value = false
   }
