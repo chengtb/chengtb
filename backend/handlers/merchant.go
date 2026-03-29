@@ -347,7 +347,7 @@ func DeleteDish(c *gin.Context) {
 // ListCategories GET /api/merchant/categories
 func ListCategories(c *gin.Context) {
 	var cats []models.Category
-	database.DB.Order("sort_order ASC").Find(&cats)
+	database.DB.Order("sort_order ASC").Preload("Dishes").Find(&cats)
 	c.JSON(http.StatusOK, cats)
 }
 

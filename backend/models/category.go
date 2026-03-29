@@ -8,6 +8,8 @@ type Category struct {
 	Name       string    `gorm:"column:name;not null;size:100" json:"name"`
 	SortOrder  int       `gorm:"column:sort_order;default:0" json:"sort_order"`
 	CreatedAt  time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+
+	Dishes []Dish `gorm:"foreignKey:CategoryID" json:"dishes,omitempty"`
 }
 
 func (Category) TableName() string { return "category" }
