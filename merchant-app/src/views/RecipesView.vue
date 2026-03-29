@@ -5,7 +5,7 @@
       <v-btn color="primary" prepend-icon="mdi-plus" @click="openAdd">添加菜谱</v-btn>
     </div>
 
-    <v-data-table :headers="headers" :items="recipes" :loading="loading" item-value="recipe_id" :group-by="[{ key: 'dish_name' }]">
+    <v-data-table :headers="headers" :items="recipes" :loading="loading" item-value="recipe_id">
       <template #item.is_enabled="{ item }">
         <v-chip :color="item.is_enabled ? 'success' : 'grey'" size="small">
           {{ item.is_enabled ? '启用' : '停用' }}
