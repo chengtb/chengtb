@@ -5,9 +5,9 @@
       <v-btn color="primary" prepend-icon="mdi-plus" @click="openAdd">添加厨师</v-btn>
     </div>
 
-    <v-data-table :headers="headers" :items="chefs" :loading="loading" item-value="id">
+    <v-data-table :headers="headers" :items="chefs" :loading="loading" item-value="chef_id">
       <template #item.recipes="{ item }">
-        <v-chip v-for="r in (item.recipes || [])" :key="r.id" size="small" class="mr-1">{{ r.name }}</v-chip>
+        <v-chip v-for="r in (item.recipes || [])" :key="r.recipe_id" size="small" class="mr-1">{{ r.name }}</v-chip>
       </template>
       <template #item.actions="{ item }">
         <v-btn size="small" icon="mdi-pencil" variant="text" @click="openEdit(item)" />
@@ -25,7 +25,7 @@
             v-model="form.recipe_ids"
             :items="allRecipes"
             item-title="name"
-            item-value="id"
+            item-value="recipe_id"
             label="擅长菜谱"
             multiple
             chips
@@ -51,10 +51,10 @@ const loading = ref(true)
 const dialog = ref(false)
 const editing = ref(false)
 const allRecipes = ref([])
-const form = ref({ id: null, name: '', max_load: 5, recipe_ids: [] })
+const form = ref({ chef_id: null, name: '', max_load: 5, recipe_ids: [] })
 
 const headers = [
-  { title: 'ID', key: 'id', width: 60 },
+  { title: 'ID', key: 'chef_id', width: 60 },
   { title: '姓名', key: 'name' },
   { title: '最大负载', key: 'max_load', width: 100 },
   { title: '当前负载', key: 'current_load', width: 100 },
@@ -74,20 +74,20 @@ async function fetchChefs() {
 
 function openAdd() {
   editing.value = false
-  form.value = { id: null, name: '', max_load: 5, recipe_ids: [] }
+  form.value = { chef_id: null, name: '', max_load: 5, recipe_ids: [] }
   dialog.value = true
 }
 
 function openEdit(chef) {
   editing.value = true
-  form.value = { id: chef.id, name: chef.name, max_load: chef.max_load, recipe_ids: (chef.recipes || []).map(r => r.id) }
+  form.value = { chef_id: chef.chef_id, name: chef.name, max_load: chef.max_load, recipe_ids: (chef.recipes || []).map(r => r.recipe_id) }
   dialog.value = true
 }
 
 async function saveChef() {
   try {
     if (editing.value) {
-      await api.put(`/chefs/${form.value.id}`, form.value)
+      await api.put(`/chefs/${form.value.chef_id}`, form.value)
     } else {
       await api.post('/chefs', form.value)
     }
@@ -99,7 +99,7 @@ async function saveChef() {
 async function deleteChef(chef) {
   if (!confirm(`确认删除厨师 ${chef.name}?`)) return
   try {
-    await api.delete(`/chefs/${chef.id}`)
+    await api.delete(`/chefs/${chef.chef_id}`)
     await fetchChefs()
   } catch {}
 }
