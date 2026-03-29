@@ -14,7 +14,7 @@ type Dish struct {
 	IsAvailable  bool      `gorm:"column:is_available;default:true" json:"is_available"`
 	CreatedAt    time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 
-	Category *Category `gorm:"foreignKey:CategoryID;references:CategoryID" json:"category,omitempty"`
+	Category *Category `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
 }
 
 func (Dish) TableName() string { return "dish" }
