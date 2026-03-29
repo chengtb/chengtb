@@ -7,52 +7,62 @@
     <div class="content">
       <van-row style="height:100%">
         <van-col span="6" class="sidebar">
-          <van-sidebar v-model="activeCategory">
+          <van-sidebar v-model="activeCategory" class="category-sidebar">
             <van-sidebar-item
               v-for="cat in categories"
-              :key="cat.id"
+              :key="cat.category_id"
               :title="cat.name"
+              class="category-item"
             />
           </van-sidebar>
         </van-col>
         <van-col span="18" class="dish-list">
           <div v-if="loading" class="loading-wrap">
-            <van-loading size="24px">加载中...</van-loading>
+            <van-loading size="24px" color="#ff6900">加载中...</van-loading>
           </div>
           <template v-else>
             <div
               v-for="dish in filteredDishes"
-              :key="dish.id"
+              :key="dish.dish_id"
               class="dish-card"
+              :class="{ 'dish-card-unavailable': !dish.is_available }"
             >
-              <van-image
-                v-if="dish.image_url"
-                :src="dish.image_url"
-                width="80"
-                height="80"
-                fit="cover"
-                radius="8"
-              />
-              <div v-else class="dish-no-image">
-                <van-icon name="photo" size="40" color="#ddd" />
+              <div class="dish-img-wrap">
+                <van-image
+                  v-if="dish.image_url"
+                  :src="dish.image_url"
+                  width="72"
+                  height="72"
+                  fit="cover"
+                  radius="8"
+                />
+                <div v-else class="dish-no-image">
+                  <van-icon name="shop-o" size="28" color="#ccc" />
+                </div>
+                <van-tag v-if="dish.special_flag" class="special-tag" type="warning" size="mini">特色</van-tag>
               </div>
               <div class="dish-info">
                 <div class="dish-name">{{ dish.name }}</div>
-                <van-tag v-if="!dish.is_available" type="warning" size="small">暂停供应</van-tag>
-                <div class="dish-price">¥{{ (dish.price / 100).toFixed(2) }}</div>
-              </div>
-              <div class="dish-action">
-                <van-stepper
-                  v-if="dish.is_available"
-                  :model-value="getItemCount(dish.id)"
-                  min="0"
-                  @change="(val) => handleQuantityChange(dish, val)"
-                  integer
-                />
-                <span v-else class="unavailable">不可购买</span>
+                <div v-if="dish.description" class="dish-desc">{{ dish.description }}</div>
+                <div class="dish-footer">
+                  <span class="dish-price">
+                    <span class="price-symbol">¥</span>{{ (dish.price / 100).toFixed(2) }}
+                  </span>
+                  <div class="dish-action">
+                    <van-stepper
+                      v-if="dish.is_available"
+                      :model-value="getItemCount(dish.dish_id)"
+                      min="0"
+                      @change="(val) => handleQuantityChange(dish, val)"
+                      integer
+                      button-size="22px"
+                    />
+                    <span v-else class="unavailable">暂停供应</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <van-empty v-if="filteredDishes.length === 0" description="暂无菜品" />
+            <van-empty v-if="filteredDishes.length === 0" description="暂无菜品" image-size="80" />
           </template>
         </van-col>
       </van-row>
@@ -130,7 +140,7 @@ const filteredDishes = computed(() => {
   if (categories.value.length === 0) return dishes.value
   const cat = categories.value[activeCategory.value]
   if (!cat) return dishes.value
-  return dishes.value.filter(d => d.category_id === cat.id)
+  return dishes.value.filter(d => d.category_id === cat.category_id)
 })
 
 function getItemCount(dishId) {
@@ -147,13 +157,13 @@ async function handleQuantityChange(dish, val) {
       return
     }
   }
-  const existing = cart.items.value.find(i => i.dish_id === dish.id)
+  const existing = cart.items.value.find(i => i.dish_id === dish.dish_id)
   if (val === 0 && existing) {
     await cart.removeItem(existing.id)
   } else if (existing) {
     await cart.updateItem(existing.id, val)
   } else if (val > 0) {
-    await cart.addItem(dish.id, val)
+    await cart.addItem(dish.dish_id, val)
   }
 }
 
@@ -171,7 +181,7 @@ async function handleSubmit() {
     const order = await cart.submitOrder()
     showToast({ type: 'success', message: '订单提交成功!' })
     showCart.value = false
-    router.push(`/status/${order.id}`)
+    router.push(`/status/${order.order_id}`)
   } catch (e) {
     showToast('提交失败: ' + (e.response?.data?.error || e.message))
   } finally {
@@ -215,6 +225,7 @@ onMounted(async () => {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  background: #f7f8fa;
 }
 .content {
   margin-top: 46px;
@@ -223,15 +234,35 @@ onMounted(async () => {
   height: calc(100vh - 46px - 60px);
   display: flex;
 }
+/* ── Sidebar ── */
 .sidebar {
   overflow-y: auto;
   height: 100%;
-  background: #f7f8fa;
+  background: #f2f3f5;
 }
+.category-sidebar {
+  width: 100%;
+}
+:deep(.van-sidebar-item) {
+  padding: 14px 10px;
+  font-size: 13px;
+  line-height: 1.3;
+  border-left: 3px solid transparent;
+  background: #f2f3f5;
+  color: #666;
+}
+:deep(.van-sidebar-item--select) {
+  background: #fff;
+  color: #ff6900;
+  font-weight: 700;
+  border-left-color: #ff6900;
+}
+/* ── Dish list ── */
 .dish-list {
   overflow-y: auto;
   height: 100%;
-  padding: 8px;
+  padding: 6px 8px;
+  background: #fff;
 }
 .loading-wrap {
   display: flex;
@@ -239,45 +270,89 @@ onMounted(async () => {
   align-items: center;
   height: 200px;
 }
+/* ── Dish card ── */
 .dish-card {
   display: flex;
-  align-items: center;
-  padding: 12px 8px;
-  background: white;
-  border-radius: 8px;
-  margin-bottom: 8px;
+  align-items: flex-start;
+  padding: 12px 4px;
+  border-bottom: 1px solid #f5f5f5;
   gap: 10px;
 }
+.dish-card:last-child {
+  border-bottom: none;
+}
+.dish-card-unavailable {
+  opacity: 0.5;
+}
+.dish-img-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+}
 .dish-no-image {
-  width: 80px;
-  height: 80px;
+  width: 72px;
+  height: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #f5f5f5;
   border-radius: 8px;
 }
+.special-tag {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  border-radius: 4px 0;
+}
 .dish-info {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 .dish-name {
   font-weight: 600;
   font-size: 14px;
+  color: #222;
+  line-height: 1.3;
+}
+.dish-desc {
+  font-size: 12px;
+  color: #999;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.4;
+}
+.dish-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
 }
 .dish-price {
-  color: #f44336;
-  font-weight: 600;
+  color: #ff4444;
+  font-weight: 700;
+  font-size: 15px;
+}
+.price-symbol {
+  font-size: 11px;
+  margin-right: 1px;
 }
 .dish-action {
   flex-shrink: 0;
 }
 .unavailable {
-  font-size: 12px;
-  color: #999;
+  font-size: 11px;
+  color: #bbb;
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
+/* ── Cart bar ── */
 .cart-bar {
   position: fixed;
   bottom: 0;
@@ -286,41 +361,47 @@ onMounted(async () => {
   max-width: 480px;
   margin: 0 auto;
   height: 60px;
-  background: #333;
+  background: linear-gradient(135deg, #3a3a3a 0%, #1a1a1a 100%);
   display: flex;
   align-items: center;
   padding: 0 16px;
   gap: 12px;
   cursor: pointer;
   z-index: 100;
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.15);
 }
 .cart-bar-empty {
   cursor: default;
 }
 .cart-icon-wrap {
   position: relative;
-  width: 40px;
-  height: 40px;
-  background: #ff6900;
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg, #ff8c00 0%, #ff6900 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 8px rgba(255,105,0,0.4);
 }
 .cart-amount {
   flex: 1;
   color: white;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
 }
 .cart-hint {
   color: white;
-  font-size: 14px;
+  font-size: 13px;
+  background: #ff6900;
+  padding: 6px 14px;
+  border-radius: 20px;
 }
 .cart-hint-empty {
-  color: rgba(255,255,255,0.5);
+  color: rgba(255,255,255,0.4);
   font-size: 14px;
 }
+/* ── Cart popup ── */
 .cart-popup {
   padding: 16px;
 }
@@ -328,11 +409,13 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f5f5f5;
 }
 .cart-popup-title {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
 }
 .cart-item {
   display: flex;
@@ -344,10 +427,12 @@ onMounted(async () => {
 .cart-item-name {
   flex: 1;
   font-size: 14px;
+  color: #333;
 }
 .cart-item-price {
-  color: #f44336;
+  color: #ff4444;
   font-size: 14px;
+  font-weight: 600;
   min-width: 60px;
   text-align: right;
 }
@@ -358,5 +443,6 @@ onMounted(async () => {
   text-align: right;
   font-size: 15px;
   margin-bottom: 12px;
+  color: #333;
 }
 </style>
