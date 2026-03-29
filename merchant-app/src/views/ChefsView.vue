@@ -2,7 +2,10 @@
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
       <h2>厨师管理</h2>
-      <v-btn color="primary" prepend-icon="mdi-plus" @click="openAdd">添加厨师</v-btn>
+      <div class="d-flex gap-2">
+        <v-btn prepend-icon="mdi-refresh" variant="tonal" @click="fetchChefs">刷新</v-btn>
+        <v-btn color="primary" prepend-icon="mdi-plus" @click="openAdd">添加厨师</v-btn>
+      </div>
     </div>
 
     <v-data-table :headers="headers" :items="chefs" :loading="loading" item-value="chef_id">

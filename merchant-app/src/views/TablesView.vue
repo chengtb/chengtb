@@ -2,7 +2,10 @@
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
       <h2>餐桌管理</h2>
-      <v-btn color="primary" prepend-icon="mdi-plus" @click="openAdd">添加餐桌</v-btn>
+      <div class="d-flex gap-2">
+        <v-btn prepend-icon="mdi-refresh" variant="tonal" @click="fetchTables">刷新</v-btn>
+        <v-btn color="primary" prepend-icon="mdi-plus" @click="openAdd">添加餐桌</v-btn>
+      </div>
     </div>
 
     <v-row v-if="loading">

@@ -1,6 +1,9 @@
 <template>
   <div>
-    <h2 class="mb-4">订单列表</h2>
+    <div class="d-flex justify-space-between align-center mb-4">
+      <h2>订单列表</h2>
+      <v-btn prepend-icon="mdi-refresh" variant="tonal" @click="fetchOrders">刷新</v-btn>
+    </div>
     <v-row class="mb-3">
       <v-col cols="12" sm="3">
         <v-select
