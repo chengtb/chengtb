@@ -172,15 +172,30 @@ func ListChefs(c *gin.Context) {
 
 // CreateChef POST /api/merchant/chefs
 func CreateChef(c *gin.Context) {
-	var chef models.Chef
-	if err := c.ShouldBindJSON(&chef); err != nil {
+	var req struct {
+		models.Chef
+		RecipeIDs []int `json:"recipe_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := database.DB.Create(&chef).Error; err != nil {
+	chef := req.Chef
+	if err := database.DB.Omit("Recipes").Create(&chef).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	if len(req.RecipeIDs) > 0 {
+		recipes := make([]*models.Recipe, len(req.RecipeIDs))
+		for i, rid := range req.RecipeIDs {
+			recipes[i] = &models.Recipe{RecipeID: rid}
+		}
+		if err := database.DB.Model(&chef).Association("Recipes").Replace(recipes); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	database.DB.Preload("Recipes").First(&chef, chef.ChefID)
 	c.JSON(http.StatusCreated, chef)
 }
 
@@ -192,12 +207,30 @@ func UpdateChef(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "chef not found"})
 		return
 	}
-	if err := c.ShouldBindJSON(&chef); err != nil {
+	var req struct {
+		models.Chef
+		RecipeIDs []int `json:"recipe_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	chef.ChefID = id
-	database.DB.Save(&chef)
+	chef.Name = req.Name
+	chef.MaxLoad = req.MaxLoad
+	chef.IsActive = req.IsActive
+	if err := database.DB.Omit("Recipes").Save(&chef).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	recipes := make([]*models.Recipe, len(req.RecipeIDs))
+	for i, rid := range req.RecipeIDs {
+		recipes[i] = &models.Recipe{RecipeID: rid}
+	}
+	if err := database.DB.Model(&chef).Association("Recipes").Replace(recipes); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	database.DB.Preload("Recipes").First(&chef, chef.ChefID)
 	c.JSON(http.StatusOK, chef)
 }
 

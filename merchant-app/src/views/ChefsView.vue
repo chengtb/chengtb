@@ -8,13 +8,54 @@
       </div>
     </div>
 
-    <v-data-table :headers="headers" :items="chefs" :loading="loading" item-value="chef_id">
+    <v-data-table
+      :headers="headers"
+      :items="chefs"
+      :loading="loading"
+      item-value="chef_id"
+      show-expand
+      v-model:expanded="expanded"
+    >
       <template #item.recipes="{ item }">
-        <v-chip v-for="r in (item.recipes || [])" :key="r.recipe_id" size="small" class="mr-1">{{ r.name }}</v-chip>
+        <v-chip size="small" :color="(item.recipes || []).length ? 'primary' : 'default'">
+          {{ (item.recipes || []).length }} 个菜谱
+        </v-chip>
       </template>
       <template #item.actions="{ item }">
         <v-btn size="small" icon="mdi-pencil" variant="text" @click="openEdit(item)" />
         <v-btn size="small" icon="mdi-delete" variant="text" color="error" @click="deleteChef(item)" />
+      </template>
+      <template #expanded-row="{ columns, item }">
+        <tr>
+          <td :colspan="columns.length" class="pa-0">
+            <v-sheet class="pa-4 bg-grey-lighten-5">
+              <div class="text-subtitle-2 mb-3 text-medium-emphasis">擅长菜谱</div>
+              <div v-if="!(item.recipes || []).length" class="text-body-2 text-disabled">暂未关联菜谱</div>
+              <v-table v-else density="compact" class="rounded border">
+                <thead>
+                  <tr>
+                    <th>菜谱ID</th>
+                    <th>菜谱名称</th>
+                    <th>份量</th>
+                    <th>状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in item.recipes" :key="r.recipe_id">
+                    <td>{{ r.recipe_id }}</td>
+                    <td>{{ r.name }}</td>
+                    <td>{{ r.portion }}</td>
+                    <td>
+                      <v-chip :color="r.is_enabled ? 'success' : 'grey'" size="x-small">
+                        {{ r.is_enabled ? '启用' : '停用' }}
+                      </v-chip>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </v-sheet>
+          </td>
+        </tr>
       </template>
     </v-data-table>
 
@@ -54,6 +95,7 @@ const loading = ref(true)
 const dialog = ref(false)
 const editing = ref(false)
 const allRecipes = ref([])
+const expanded = ref([])
 const form = ref({ chef_id: null, name: '', max_load: 5, recipe_ids: [] })
 
 const headers = [
@@ -61,7 +103,7 @@ const headers = [
   { title: '姓名', key: 'name' },
   { title: '最大负载', key: 'max_load', width: 100 },
   { title: '当前负载', key: 'current_load', width: 100 },
-  { title: '擅长菜谱', key: 'recipes' },
+  { title: '擅长菜谱', key: 'recipes', sortable: false },
   { title: '操作', key: 'actions', sortable: false, width: 120 },
 ]
 
