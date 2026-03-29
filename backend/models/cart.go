@@ -16,7 +16,7 @@ type CartSession struct {
 	Status    CartSessionStatus `gorm:"column:status;type:enum('active','submitted','closed');default:'active'" json:"status"`
 	CreatedAt time.Time         `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 
-	Table *Table        `gorm:"foreignKey:TableID" json:"table,omitempty"`
+	Table *Table        `json:"table,omitempty"`
 	Items []SessionItem `gorm:"foreignKey:SessionID" json:"items,omitempty"`
 }
 
@@ -31,7 +31,7 @@ type SessionItem struct {
 	AddedBy   string    `gorm:"column:added_by;size:50" json:"added_by"`
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 
-	Dish *Dish `gorm:"foreignKey:DishID" json:"dish,omitempty"`
+	Dish *Dish `json:"dish,omitempty"`
 }
 
 func (SessionItem) TableName() string { return "session_item" }

@@ -206,10 +206,7 @@ func UpdateChef(c *gin.Context) {
 // ListRecipes GET /api/merchant/recipes
 func ListRecipes(c *gin.Context) {
 	var recipes []models.Recipe
-	// Joins("Dish") uses a SQL JOIN instead of a separate preload query, so
-	// the database enforces recipe.dish_id = dish.dish_id, preventing any
-	// in-memory mapping mismatch between the top-level dish_id and dish.dish_id.
-	database.DB.Joins("Dish").Find(&recipes)
+	database.DB.Preload("Dish").Find(&recipes)
 	c.JSON(http.StatusOK, recipes)
 }
 
@@ -220,9 +217,7 @@ func CreateRecipe(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	// Omit("Dish") prevents GORM's FullSaveAssociations from interfering with
-	// the dish_id foreign key when the Dish association pointer is nil.
-	if err := database.DB.Omit("Dish").Create(&recipe).Error; err != nil {
+	if err := database.DB.Create(&recipe).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -242,9 +237,6 @@ func UpdateRecipe(c *gin.Context) {
 		return
 	}
 	recipe.RecipeID = id
-	// Use Updates with an explicit map instead of Save to bypass GORM's
-	// FullSaveAssociations, which can fail to persist dish_id when the Dish
-	// association is not preloaded (i.e. Dish pointer is nil).
 	if err := database.DB.Model(&recipe).Updates(map[string]interface{}{
 		"dish_id":    recipe.DishID,
 		"name":       recipe.Name,

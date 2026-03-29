@@ -11,7 +11,7 @@ type Recipe struct {
 	MaxPortion int       `gorm:"column:max_portion;default:10" json:"max_portion"`
 	CreatedAt  time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 
-	Dish *Dish `gorm:"foreignKey:DishID" json:"dish,omitempty"`
+	Dish *Dish `json:"dish,omitempty"`
 }
 
 func (Recipe) TableName() string { return "recipe" }

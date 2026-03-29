@@ -29,9 +29,9 @@ type CookingTask struct {
 	CreatedAt    time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	CompletedAt  sql.NullTime   `gorm:"column:completed_at" json:"completed_at"`
 
-	Chef   *Chef   `gorm:"foreignKey:ChefID" json:"chef,omitempty"`
-	Recipe *Recipe `gorm:"foreignKey:RecipeID" json:"recipe,omitempty"`
-	Dish   *Dish   `gorm:"foreignKey:DishID" json:"dish,omitempty"`
+	Chef   *Chef   `json:"chef,omitempty"`
+	Recipe *Recipe `json:"recipe,omitempty"`
+	Dish   *Dish   `json:"dish,omitempty"`
 }
 
 func (CookingTask) TableName() string { return "cooking_task" }
