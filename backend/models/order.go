@@ -31,8 +31,8 @@ type Order struct {
 	IsVIP         bool           `gorm:"column:is_vip;default:false" json:"is_vip"`
 	CreatedAt     time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 
-	Table  *Table      `gorm:"foreignKey:TableID;references:TableID" json:"table,omitempty"`
-	Items  []OrderItem `gorm:"foreignKey:OrderID;references:OrderID" json:"items,omitempty"`
+	Table  *Table      `gorm:"foreignKey:TableID" json:"table,omitempty"`
+	Items  []OrderItem `gorm:"foreignKey:OrderID" json:"items,omitempty"`
 }
 
 func (Order) TableName() string { return "order" }
@@ -46,8 +46,8 @@ type OrderItem struct {
 	Status    OrderItemStatus `gorm:"column:status;type:enum('pending','dispatched','cooking','done');default:'pending'" json:"status"`
 	CreatedAt time.Time       `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 
-	Dish  *Dish  `gorm:"foreignKey:DishID;references:DishID" json:"dish,omitempty"`
-	Order *Order `gorm:"foreignKey:OrderID;references:OrderID" json:"-"`
+	Dish  *Dish  `gorm:"foreignKey:DishID" json:"dish,omitempty"`
+	Order *Order `gorm:"foreignKey:OrderID" json:"-"`
 }
 
 func (OrderItem) TableName() string { return "order_item" }
