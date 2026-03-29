@@ -15,11 +15,11 @@
     <div v-else>
       <v-empty-state v-if="filteredTasks.length === 0" title="暂无任务" icon="mdi-chef-hat" />
       <v-row>
-        <v-col v-for="task in filteredTasks" :key="task.id" cols="12" sm="6" md="4">
+        <v-col v-for="task in filteredTasks" :key="task.task_id" cols="12" sm="6" md="4">
           <v-card :color="task.status === 'pending' ? '' : 'grey-lighten-3'" elevation="2">
             <v-card-title class="text-h6">
               {{ task.recipe?.name || task.recipe_id }}
-              <v-chip size="small" class="ml-2" color="primary">x{{ task.total_portions }}</v-chip>
+              <v-chip size="small" class="ml-2" color="primary">x{{ task.total_portion }}</v-chip>
             </v-card-title>
             <v-card-subtitle>{{ task.dish_name || '' }}</v-card-subtitle>
             <v-card-text>
@@ -46,7 +46,7 @@
                 variant="elevated"
                 prepend-icon="mdi-check-circle"
                 @click="completeTask(task)"
-                :loading="completing === task.id"
+                :loading="completing === task.task_id"
               >
                 完成烹饪
               </v-btn>
@@ -95,9 +95,9 @@ async function fetchTasks() {
 }
 
 async function completeTask(task) {
-  completing.value = task.id
+  completing.value = task.task_id
   try {
-    await api.put(`/tasks/${task.id}/complete`)
+    await api.put(`/tasks/${task.task_id}/complete`)
     snackbar.value = true
     await fetchTasks()
   } catch {} finally {
