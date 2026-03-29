@@ -11,6 +11,7 @@ type OrderItemStatus string
 const (
 	OrderStatusPending   OrderStatus = "pending"
 	OrderStatusCooking   OrderStatus = "cooking"
+	OrderStatusDining    OrderStatus = "dining"
 	OrderStatusCompleted OrderStatus = "completed"
 	OrderStatusCancelled OrderStatus = "cancelled"
 
@@ -18,6 +19,7 @@ const (
 	OrderItemStatusDispatched OrderItemStatus = "dispatched"
 	OrderItemStatusCooking    OrderItemStatus = "cooking"
 	OrderItemStatusDone       OrderItemStatus = "done"
+	OrderItemStatusServed     OrderItemStatus = "served"
 )
 
 type Order struct {
@@ -25,7 +27,7 @@ type Order struct {
 	TableID       int            `gorm:"column:table_id;not null" json:"table_id"`
 	SessionID     *int           `gorm:"column:session_id" json:"session_id"`
 	TotalAmount   float64        `gorm:"column:total_amount;type:decimal(10,2)" json:"total_amount"`
-	Status        OrderStatus    `gorm:"column:status;type:enum('pending','cooking','completed','cancelled');default:'pending'" json:"status"`
+	Status        OrderStatus    `gorm:"column:status;type:enum('pending','cooking','dining','completed','cancelled');default:'pending'" json:"status"`
 	PaidAt        sql.NullTime   `gorm:"column:paid_at" json:"paid_at"`
 	PaymentMethod string         `gorm:"column:payment_method;size:50" json:"payment_method"`
 	IsVIP         bool           `gorm:"column:is_vip;default:false" json:"is_vip"`
@@ -43,7 +45,7 @@ type OrderItem struct {
 	DishID    int             `gorm:"column:dish_id;not null" json:"dish_id"`
 	Quantity  int             `gorm:"column:quantity;default:1" json:"quantity"`
 	Note      string          `gorm:"column:note;size:255" json:"note"`
-	Status    OrderItemStatus `gorm:"column:status;type:enum('pending','dispatched','cooking','done');default:'pending'" json:"status"`
+	Status    OrderItemStatus `gorm:"column:status;type:enum('pending','dispatched','cooking','done','served');default:'pending'" json:"status"`
 	CreatedAt time.Time       `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 
 	Dish  *Dish  `json:"dish,omitempty"`

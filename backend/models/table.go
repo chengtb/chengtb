@@ -18,6 +18,7 @@ type Table struct {
 	Status    TableStatus `gorm:"column:status;type:enum('idle','ordering','waiting','dining','checkout');default:'idle'" json:"status"`
 	QRCode    string      `gorm:"column:qr_code;size:255" json:"qr_code"`
 	Capacity  int         `gorm:"column:capacity;default:4" json:"capacity"`
+	Area      string      `gorm:"column:area;size:50" json:"area"`
 	CreatedAt time.Time   `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 }
 

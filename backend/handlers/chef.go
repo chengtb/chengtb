@@ -8,6 +8,7 @@ import (
 
 	"restaurant-system/database"
 	"restaurant-system/models"
+	"restaurant-system/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -102,6 +103,40 @@ func CompleteTask(c *gin.Context) {
 			Update("status", models.OrderItemStatusDone)
 	}
 
+	// Create a delivery task for the waiter
+	deliveryTask := models.DeliveryTask{
+		CookingTaskID: task.TaskID,
+		TableIDs:      task.TableIDs,
+		Status:        models.DeliveryTaskStatusPending,
+	}
+	if err := database.DB.Create(&deliveryTask).Error; err == nil {
+		// Notify connected waiters about the new task
+		database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").
+			First(&deliveryTask, deliveryTask.TaskID)
+		notifyWaiters(task, deliveryTask)
+	}
+
 	database.DB.Preload("Chef").Preload("Recipe").Preload("Dish").First(&task, taskID)
 	c.JSON(http.StatusOK, task)
+}
+
+// notifyWaiters broadcasts the new delivery task to connected waiters
+func notifyWaiters(cookingTask models.CookingTask, deliveryTask models.DeliveryTask) {
+	msg, err := json.Marshal(map[string]interface{}{
+		"type":          "new_delivery_task",
+		"delivery_task": deliveryTask,
+	})
+	if err != nil {
+		return
+	}
+	// Determine the area based on the first table in table_ids
+	var tableIDs []int
+	area := ""
+	if jsonErr := json.Unmarshal(cookingTask.TableIDs, &tableIDs); jsonErr == nil && len(tableIDs) > 0 {
+		var table models.Table
+		if err := database.DB.First(&table, tableIDs[0]).Error; err == nil {
+			area = table.Area
+		}
+	}
+	services.WaiterHub.BroadcastNewTask(area, msg)
 }

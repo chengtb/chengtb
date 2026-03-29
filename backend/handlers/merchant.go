@@ -476,3 +476,100 @@ func UpdateConfig(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "updated"})
 }
+
+// ── Waiter management ────────────────────────────────────────────────────────
+
+// ListWaiters GET /api/merchant/waiters
+func ListWaiters(c *gin.Context) {
+var waiters []models.Waiter
+database.DB.Find(&waiters)
+c.JSON(http.StatusOK, waiters)
+}
+
+// CreateWaiter POST /api/merchant/waiters
+func CreateWaiter(c *gin.Context) {
+var waiter models.Waiter
+if err := c.ShouldBindJSON(&waiter); err != nil {
+c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+return
+}
+if err := database.DB.Create(&waiter).Error; err != nil {
+c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+return
+}
+c.JSON(http.StatusCreated, waiter)
+}
+
+// UpdateWaiter PUT /api/merchant/waiters/:waiterId
+func UpdateWaiter(c *gin.Context) {
+id, _ := strconv.Atoi(c.Param("waiterId"))
+var waiter models.Waiter
+if err := database.DB.First(&waiter, id).Error; err != nil {
+c.JSON(http.StatusNotFound, gin.H{"error": "waiter not found"})
+return
+}
+if err := c.ShouldBindJSON(&waiter); err != nil {
+c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+return
+}
+waiter.WaiterID = id
+database.DB.Save(&waiter)
+c.JSON(http.StatusOK, waiter)
+}
+
+// DeleteWaiter DELETE /api/merchant/waiters/:waiterId
+func DeleteWaiter(c *gin.Context) {
+id, _ := strconv.Atoi(c.Param("waiterId"))
+if err := database.DB.Delete(&models.Waiter{}, id).Error; err != nil {
+c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+return
+}
+c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+// ── Delivery tasks (merchant view) ──────────────────────────────────────────
+
+// ListDeliveryTasks GET /api/merchant/delivery-tasks
+func ListDeliveryTasks(c *gin.Context) {
+status := c.Query("status")
+var tasks []models.DeliveryTask
+q := database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").Preload("Waiter").
+Order("created_at DESC")
+if status != "" {
+q = q.Where("status = ?", status)
+}
+q.Find(&tasks)
+c.JSON(http.StatusOK, tasks)
+}
+
+// ReturnDishCommand PUT /api/merchant/delivery-tasks/:taskId/return
+// Merchant issues a return-dish instruction; delivery task transitions to rejected
+func ReturnDishCommand(c *gin.Context) {
+taskID, _ := strconv.Atoi(c.Param("taskId"))
+var req struct {
+Reason string `json:"reason" binding:"required"`
+}
+if err := c.ShouldBindJSON(&req); err != nil {
+c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+return
+}
+
+var task models.DeliveryTask
+if err := database.DB.First(&task, taskID).Error; err != nil {
+c.JSON(http.StatusNotFound, gin.H{"error": "delivery task not found"})
+return
+}
+if task.Status == models.DeliveryTaskStatusDone || task.Status == models.DeliveryTaskStatusRejected {
+c.JSON(http.StatusBadRequest, gin.H{"error": "task already completed or rejected"})
+return
+}
+
+task.Status = models.DeliveryTaskStatusRejected
+task.RejectReason = "[商家退菜] " + req.Reason
+task.WaiterID = nil
+database.DB.Save(&task)
+
+database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").Preload("Waiter").
+First(&task, taskID)
+c.JSON(http.StatusOK, task)
+}

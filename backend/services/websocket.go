@@ -76,3 +76,73 @@ func (h *WSHub) ReadPump(client *WSClient) {
 		}
 	}
 }
+
+// ── Waiter WebSocket Hub ────────────────────────────────────────────────────
+
+type WaiterWSClient struct {
+	WaiterID int
+	Area     string
+	Conn     *websocket.Conn
+	Send     chan []byte
+}
+
+type WaiterWSHub struct {
+	mu      sync.RWMutex
+	clients map[int]*WaiterWSClient
+}
+
+var WaiterHub = &WaiterWSHub{
+	clients: make(map[int]*WaiterWSClient),
+}
+
+func (h *WaiterWSHub) Register(client *WaiterWSClient) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.clients[client.WaiterID] = client
+}
+
+func (h *WaiterWSHub) Unregister(client *WaiterWSClient) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if existing, ok := h.clients[client.WaiterID]; ok && existing == client {
+		delete(h.clients, client.WaiterID)
+	}
+	close(client.Send)
+}
+
+// BroadcastNewTask sends a new-task notification to all connected waiters.
+// If area is non-empty, only waiters whose area_assigned matches (or is empty) receive it.
+func (h *WaiterWSHub) BroadcastNewTask(area string, msg []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for _, client := range h.clients {
+		if area == "" || client.Area == "" || client.Area == area {
+			select {
+			case client.Send <- msg:
+			default:
+			}
+		}
+	}
+}
+
+func (h *WaiterWSHub) WritePump(client *WaiterWSClient) {
+	defer client.Conn.Close()
+	for msg := range client.Send {
+		if err := client.Conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+			return
+		}
+	}
+}
+
+func (h *WaiterWSHub) ReadPump(client *WaiterWSClient) {
+	defer func() {
+		h.Unregister(client)
+		client.Conn.Close()
+	}()
+	for {
+		_, _, err := client.Conn.ReadMessage()
+		if err != nil {
+			break
+		}
+	}
+}

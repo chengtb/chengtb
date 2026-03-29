@@ -13,6 +13,7 @@ func Setup() *gin.Engine {
 
 	// WebSocket
 	r.GET("/ws/cart/:sessionId", handlers.CartWebSocket)
+	r.GET("/ws/waiter/:waiterId", handlers.WaiterWebSocket)
 
 	// Customer APIs
 	customer := r.Group("/api/customer")
@@ -70,6 +71,14 @@ func Setup() *gin.Engine {
 		merchant.GET("/tasks", handlers.ListTasks)
 		merchant.PUT("/tasks/:taskId/reassign", handlers.ReassignTask)
 
+		merchant.GET("/waiters", handlers.ListWaiters)
+		merchant.POST("/waiters", handlers.CreateWaiter)
+		merchant.PUT("/waiters/:waiterId", handlers.UpdateWaiter)
+		merchant.DELETE("/waiters/:waiterId", handlers.DeleteWaiter)
+
+		merchant.GET("/delivery-tasks", handlers.ListDeliveryTasks)
+		merchant.PUT("/delivery-tasks/:taskId/return", handlers.ReturnDishCommand)
+
 		merchant.GET("/config", handlers.GetConfig)
 		merchant.PUT("/config", handlers.UpdateConfig)
 	}
@@ -82,6 +91,18 @@ func Setup() *gin.Engine {
 		chef.GET("/tasks", handlers.GetChefTasks)
 		chef.GET("/tasks/:taskId", handlers.GetChefTaskDetails)
 		chef.PUT("/tasks/:taskId/complete", handlers.CompleteTask)
+	}
+
+	// Waiter APIs
+	waiter := r.Group("/api/waiter")
+	{
+		waiter.POST("/auth/login", handlers.WaiterLogin)
+		waiter.GET("/waiters/:waiterId", handlers.GetWaiterProfile)
+		waiter.GET("/tasks", handlers.GetDeliveryTasks)
+		waiter.GET("/tasks/:taskId", handlers.GetDeliveryTaskDetails)
+		waiter.PUT("/tasks/:taskId/pickup", handlers.PickupDeliveryTask)
+		waiter.PUT("/tasks/:taskId/deliver", handlers.ConfirmDelivery)
+		waiter.PUT("/tasks/:taskId/reject", handlers.RejectDeliveryTask)
 	}
 
 	return r

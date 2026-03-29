@@ -69,5 +69,15 @@ services:
     depends_on:
       - backend
 
+  waiter-app:
+    build:
+      context: ./waiter-app
+      dockerfile: Dockerfile
+    container_name: restaurant-waiter
+    ports:
+      - "3004:80"
+    depends_on:
+      - backend
+
 volumes:
   mysql_data:
