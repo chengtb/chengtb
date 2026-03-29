@@ -16,6 +16,9 @@
       <template #item.price="{ item }">
         ¥{{ (item.price / 100).toFixed(2) }}
       </template>
+      <template #item.category_name="{ item }">
+        {{ item.category?.name || '—' }}
+      </template>
       <template #item.is_available="{ item }">
         <v-switch :model-value="item.is_available" density="compact" hide-details @change="toggleAvailable(item)" />
       </template>
