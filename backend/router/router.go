@@ -62,6 +62,8 @@ func Setup() *gin.Engine {
 
 		merchant.GET("/categories", handlers.ListCategories)
 		merchant.POST("/categories", handlers.CreateCategory)
+		merchant.PUT("/categories/:categoryId", handlers.UpdateCategory)
+		merchant.DELETE("/categories/:categoryId", handlers.DeleteCategory)
 
 		merchant.GET("/tasks", handlers.ListTasks)
 		merchant.PUT("/tasks/:taskId/reassign", handlers.ReassignTask)

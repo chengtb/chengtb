@@ -42,6 +42,7 @@ const navItems = [
   { title: '订单列表', icon: 'mdi-clipboard-list', to: '/orders' },
   { title: '厨师管理', icon: 'mdi-chef-hat', to: '/chefs' },
   { title: '菜品管理', icon: 'mdi-food', to: '/dishes' },
+  { title: '菜品分类', icon: 'mdi-tag-multiple', to: '/categories' },
   { title: '菜谱管理', icon: 'mdi-book-open-variant', to: '/recipes' },
   { title: '烹饪任务', icon: 'mdi-pot-steam', to: '/tasks' },
   { title: '系统配置', icon: 'mdi-cog', to: '/config' },

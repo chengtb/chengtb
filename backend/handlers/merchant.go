@@ -324,6 +324,33 @@ func CreateCategory(c *gin.Context) {
 	c.JSON(http.StatusCreated, cat)
 }
 
+// UpdateCategory PUT /api/merchant/categories/:categoryId
+func UpdateCategory(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("categoryId"))
+	var cat models.Category
+	if err := database.DB.First(&cat, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "category not found"})
+		return
+	}
+	if err := c.ShouldBindJSON(&cat); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	cat.CategoryID = id
+	database.DB.Save(&cat)
+	c.JSON(http.StatusOK, cat)
+}
+
+// DeleteCategory DELETE /api/merchant/categories/:categoryId
+func DeleteCategory(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("categoryId"))
+	if err := database.DB.Delete(&models.Category{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
 // --- Cooking tasks ---
 
 // ListTasks GET /api/merchant/tasks
