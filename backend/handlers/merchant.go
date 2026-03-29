@@ -18,6 +18,47 @@ func GetAllTables(c *gin.Context) {
 	c.JSON(http.StatusOK, tables)
 }
 
+// CreateTable POST /api/merchant/tables
+func CreateTable(c *gin.Context) {
+	var table models.Table
+	if err := c.ShouldBindJSON(&table); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := database.DB.Create(&table).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, table)
+}
+
+// UpdateTable PUT /api/merchant/tables/:tableId
+func UpdateTable(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("tableId"))
+	var table models.Table
+	if err := database.DB.First(&table, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "table not found"})
+		return
+	}
+	if err := c.ShouldBindJSON(&table); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	table.TableID = id
+	database.DB.Save(&table)
+	c.JSON(http.StatusOK, table)
+}
+
+// DeleteTable DELETE /api/merchant/tables/:tableId
+func DeleteTable(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("tableId"))
+	if err := database.DB.Delete(&models.Table{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
 // GetTableOrder GET /api/merchant/tables/:tableId/order
 func GetTableOrder(c *gin.Context) {
 	tableID, _ := strconv.Atoi(c.Param("tableId"))

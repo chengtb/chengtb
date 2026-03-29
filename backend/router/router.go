@@ -34,6 +34,9 @@ func Setup() *gin.Engine {
 	merchant := r.Group("/api/merchant")
 	{
 		merchant.GET("/tables", handlers.GetAllTables)
+		merchant.POST("/tables", handlers.CreateTable)
+		merchant.PUT("/tables/:tableId", handlers.UpdateTable)
+		merchant.DELETE("/tables/:tableId", handlers.DeleteTable)
 		merchant.GET("/tables/:tableId/order", handlers.GetTableOrder)
 		merchant.PUT("/tables/:tableId/status", handlers.UpdateTableStatus)
 
