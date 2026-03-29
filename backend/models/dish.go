@@ -7,7 +7,7 @@ type Dish struct {
 	CategoryID   int       `gorm:"column:category_id" json:"category_id"`
 	Name         string    `gorm:"column:name;not null;size:100" json:"name"`
 	Price        float64   `gorm:"column:price;not null;type:decimal(10,2)" json:"price"`
-	Image        string    `gorm:"column:image;size:255" json:"image"`
+	Image        string    `gorm:"column:image;size:255" json:"image_url"`
 	Description  string    `gorm:"column:description;type:text" json:"description"`
 	SpecialFlag  bool      `gorm:"column:special_flag;default:false" json:"special_flag"`
 	AllowCombine bool      `gorm:"column:allow_combine;default:true" json:"allow_combine"`
