@@ -39,10 +39,12 @@
                     <th>价格</th>
                     <th>特色</th>
                     <th>状态</th>
+                    <th>排序</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="d in item.dishes" :key="d.dish_id">
+                  <tr v-for="(d, idx) in item.dishes" :key="d.dish_id">
                     <td>{{ d.dish_id }}</td>
                     <td>{{ d.name }}</td>
                     <td>¥{{ (d.price / 100).toFixed(2) }}</td>
@@ -54,6 +56,23 @@
                       <v-chip :color="d.is_available ? 'success' : 'grey'" size="x-small">
                         {{ d.is_available ? '上架' : '下架' }}
                       </v-chip>
+                    </td>
+                    <td style="width:60px">{{ d.sort_order }}</td>
+                    <td style="white-space:nowrap">
+                      <v-btn
+                        icon="mdi-arrow-up"
+                        size="x-small"
+                        variant="text"
+                        :disabled="idx === 0"
+                        @click="moveDish(item, idx, -1)"
+                      />
+                      <v-btn
+                        icon="mdi-arrow-down"
+                        size="x-small"
+                        variant="text"
+                        :disabled="idx === item.dishes.length - 1"
+                        @click="moveDish(item, idx, 1)"
+                      />
                     </td>
                   </tr>
                 </tbody>
@@ -138,6 +157,30 @@ async function deleteCategory(cat) {
   if (!confirm(`确认删除分类 ${cat.name}?`)) return
   try {
     await api.delete(`/categories/${cat.category_id}`)
+    await fetchCategories()
+  } catch {}
+}
+
+async function moveDish(category, idx, direction) {
+  const dishes = category.dishes
+  const target = idx + direction
+  if (target < 0 || target >= dishes.length) return
+  // swap sort_order values
+  const a = dishes[idx]
+  const b = dishes[target]
+  const tmpOrder = a.sort_order
+  a.sort_order = b.sort_order
+  b.sort_order = tmpOrder
+  // if both have same sort_order, spread them out
+  if (a.sort_order === b.sort_order) {
+    a.sort_order = idx * 10
+    b.sort_order = target * 10
+  }
+  try {
+    await Promise.all([
+      api.put(`/dishes/${a.dish_id}`, a),
+      api.put(`/dishes/${b.dish_id}`, b),
+    ])
     await fetchCategories()
   } catch {}
 }

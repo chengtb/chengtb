@@ -9,6 +9,7 @@ import (
 	"restaurant-system/services"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // GetAllTables GET /api/merchant/tables
@@ -347,7 +348,9 @@ func DeleteDish(c *gin.Context) {
 // ListCategories GET /api/merchant/categories
 func ListCategories(c *gin.Context) {
 	var cats []models.Category
-	database.DB.Order("sort_order ASC").Preload("Dishes").Find(&cats)
+	database.DB.Order("sort_order ASC").Preload("Dishes", func(db *gorm.DB) *gorm.DB {
+		return db.Order("sort_order ASC")
+	}).Find(&cats)
 	c.JSON(http.StatusOK, cats)
 }
 

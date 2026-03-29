@@ -12,6 +12,7 @@ type Dish struct {
 	SpecialFlag  bool      `gorm:"column:special_flag;default:false" json:"special_flag"`
 	AllowCombine bool      `gorm:"column:allow_combine;default:true" json:"allow_combine"`
 	IsAvailable  bool      `gorm:"column:is_available;default:true" json:"is_available"`
+	SortOrder    int       `gorm:"column:sort_order;default:0" json:"sort_order"`
 	CreatedAt    time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 
 	Category *Category `json:"category,omitempty"`
