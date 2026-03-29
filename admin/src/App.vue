@@ -6,6 +6,7 @@
         <router-link to="/tables" class="nav-link">🪑 桌台总览</router-link>
         <router-link to="/orders" class="nav-link">📋 订单管理</router-link>
         <router-link to="/menu" class="nav-link">🍽️ 菜单管理</router-link>
+        <router-link to="/tasks" class="nav-link">🍳 任务看板</router-link>
       </nav>
     </aside>
     <main class="main-content">
