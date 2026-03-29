@@ -241,6 +241,16 @@ func UpdateRecipe(c *gin.Context) {
 	c.JSON(http.StatusOK, recipe)
 }
 
+// DeleteRecipe DELETE /api/merchant/recipes/:recipeId
+func DeleteRecipe(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("recipeId"))
+	if err := database.DB.Delete(&models.Recipe{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
 // --- Dish management ---
 
 // MerchantListDishes GET /api/merchant/dishes

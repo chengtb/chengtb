@@ -53,6 +53,7 @@ func Setup() *gin.Engine {
 		merchant.GET("/recipes", handlers.ListRecipes)
 		merchant.POST("/recipes", handlers.CreateRecipe)
 		merchant.PUT("/recipes/:recipeId", handlers.UpdateRecipe)
+		merchant.DELETE("/recipes/:recipeId", handlers.DeleteRecipe)
 
 		merchant.GET("/dishes", handlers.MerchantListDishes)
 		merchant.POST("/dishes", handlers.CreateDish)
