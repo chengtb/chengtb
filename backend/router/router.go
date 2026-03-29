@@ -70,6 +70,7 @@ func Setup() *gin.Engine {
 	chef := r.Group("/api/chef")
 	{
 		chef.POST("/auth/login", handlers.ChefLogin)
+		chef.GET("/chefs/:chefId", handlers.GetChefProfile)
 		chef.GET("/tasks", handlers.GetChefTasks)
 		chef.GET("/tasks/:taskId", handlers.GetChefTaskDetails)
 		chef.PUT("/tasks/:taskId/complete", handlers.CompleteTask)

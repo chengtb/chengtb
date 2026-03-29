@@ -29,6 +29,21 @@ func ChefLogin(c *gin.Context) {
 	c.JSON(http.StatusOK, chef)
 }
 
+// GetChefProfile GET /api/chef/chefs/:chefId
+func GetChefProfile(c *gin.Context) {
+	chefID, err := strconv.Atoi(c.Param("chefId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid chef id"})
+		return
+	}
+	var chef models.Chef
+	if err := database.DB.First(&chef, chefID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "chef not found"})
+		return
+	}
+	c.JSON(http.StatusOK, chef)
+}
+
 // GetChefTasks GET /api/chef/tasks  (chef_id via query param)
 func GetChefTasks(c *gin.Context) {
 	chefID, err := strconv.Atoi(c.Query("chef_id"))
