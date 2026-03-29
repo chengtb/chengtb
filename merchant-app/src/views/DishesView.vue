@@ -5,7 +5,7 @@
       <v-btn color="primary" prepend-icon="mdi-plus" @click="openAdd">添加菜品</v-btn>
     </div>
 
-    <v-data-table :headers="headers" :items="dishes" :loading="loading" item-value="id">
+    <v-data-table :headers="headers" :items="dishes" :loading="loading" item-value="dish_id">
       <template #item.image_url="{ item }">
         <v-img v-if="item.image_url" :src="item.image_url" width="48" height="48" cover rounded />
         <v-icon v-else>mdi-image-off</v-icon>
@@ -33,7 +33,7 @@
             v-model="form.category_id"
             :items="categories"
             item-title="name"
-            item-value="id"
+            item-value="category_id"
             label="分类"
             variant="outlined"
             class="mb-3"
@@ -59,7 +59,7 @@ const categories = ref([])
 const loading = ref(true)
 const dialog = ref(false)
 const editing = ref(false)
-const form = ref({ id: null, name: '', price: 0, image_url: '', category_id: null, is_available: true })
+const form = ref({ dish_id: null, name: '', price: 0, image_url: '', category_id: null, is_available: true })
 
 const headers = [
   { title: '图片', key: 'image_url', sortable: false, width: 70 },
@@ -82,7 +82,7 @@ async function fetchDishes() {
 
 function openAdd() {
   editing.value = false
-  form.value = { id: null, name: '', price: 0, image_url: '', category_id: null, is_available: true }
+  form.value = { dish_id: null, name: '', price: 0, image_url: '', category_id: null, is_available: true }
   dialog.value = true
 }
 
@@ -95,7 +95,7 @@ function openEdit(dish) {
 async function saveDish() {
   try {
     if (editing.value) {
-      await api.put(`/dishes/${form.value.id}`, form.value)
+      await api.put(`/dishes/${form.value.dish_id}`, form.value)
     } else {
       await api.post('/dishes', form.value)
     }
@@ -107,14 +107,14 @@ async function saveDish() {
 async function deleteDish(dish) {
   if (!confirm(`确认删除菜品 ${dish.name}?`)) return
   try {
-    await api.delete(`/dishes/${dish.id}`)
+    await api.delete(`/dishes/${dish.dish_id}`)
     await fetchDishes()
   } catch {}
 }
 
 async function toggleAvailable(dish) {
   try {
-    await api.put(`/dishes/${dish.id}`, { ...dish, is_available: !dish.is_available })
+    await api.put(`/dishes/${dish.dish_id}`, { ...dish, is_available: !dish.is_available })
     await fetchDishes()
   } catch {}
 }
