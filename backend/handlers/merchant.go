@@ -217,7 +217,9 @@ func CreateRecipe(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := database.DB.Create(&recipe).Error; err != nil {
+	// Omit("Dish") prevents GORM's FullSaveAssociations from interfering with
+	// the dish_id foreign key when the Dish association pointer is nil.
+	if err := database.DB.Omit("Dish").Create(&recipe).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -237,7 +239,18 @@ func UpdateRecipe(c *gin.Context) {
 		return
 	}
 	recipe.RecipeID = id
-	database.DB.Save(&recipe)
+	// Use Updates with an explicit map instead of Save to bypass GORM's
+	// FullSaveAssociations, which can fail to persist dish_id when the Dish
+	// association is not preloaded (i.e. Dish pointer is nil).
+	if err := database.DB.Model(&recipe).Updates(map[string]interface{}{
+		"dish_id":    recipe.DishID,
+		"name":       recipe.Name,
+		"portion":    recipe.Portion,
+		"is_enabled": recipe.IsEnabled,
+	}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, recipe)
 }
 
