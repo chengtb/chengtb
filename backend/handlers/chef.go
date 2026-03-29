@@ -44,9 +44,13 @@ func GetChefProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, chef)
 }
 
-// GetChefTasks GET /api/chef/tasks  (chef_id via query param)
+// GetChefTasks GET /api/chef/tasks  (chef_id via X-Chef-ID header or chef_id query param)
 func GetChefTasks(c *gin.Context) {
-	chefID, err := strconv.Atoi(c.Query("chef_id"))
+	raw := c.GetHeader("X-Chef-ID")
+	if raw == "" {
+		raw = c.Query("chef_id")
+	}
+	chefID, err := strconv.Atoi(raw)
 	if err != nil || chefID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "chef_id required"})
 		return
