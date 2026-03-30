@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -582,47 +583,63 @@ c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 
 // ── Delivery tasks (merchant view) ──────────────────────────────────────────
 
+// populateTaskTables loads the Table records (with Area) referenced by a delivery task's
+// table_ids JSON field and stores them in task.Tables.
+func populateTaskTables(tasks []models.DeliveryTask) {
+	for i := range tasks {
+		var ids []int
+		if err := json.Unmarshal(tasks[i].TableIDs, &ids); err != nil || len(ids) == 0 {
+			continue
+		}
+		var tables []*models.Table
+		database.DB.Preload("Area").Where("table_id IN ?", ids).Find(&tables)
+		tasks[i].Tables = tables
+	}
+}
+
 // ListDeliveryTasks GET /api/merchant/delivery-tasks
 func ListDeliveryTasks(c *gin.Context) {
-status := c.Query("status")
-var tasks []models.DeliveryTask
-q := database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").Preload("Waiter.Area").
-Order("created_at DESC")
-if status != "" {
-q = q.Where("status = ?", status)
-}
-q.Find(&tasks)
-c.JSON(http.StatusOK, tasks)
+	status := c.Query("status")
+	var tasks []models.DeliveryTask
+	q := database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").Preload("Waiter.Area").
+		Order("created_at DESC")
+	if status != "" {
+		q = q.Where("status = ?", status)
+	}
+	q.Find(&tasks)
+	populateTaskTables(tasks)
+	c.JSON(http.StatusOK, tasks)
 }
 
 // ReturnDishCommand PUT /api/merchant/delivery-tasks/:taskId/return
 // Merchant issues a return-dish instruction; delivery task transitions to rejected
 func ReturnDishCommand(c *gin.Context) {
-taskID, _ := strconv.Atoi(c.Param("taskId"))
-var req struct {
-Reason string `json:"reason" binding:"required"`
-}
-if err := c.ShouldBindJSON(&req); err != nil {
-c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-return
-}
+	taskID, _ := strconv.Atoi(c.Param("taskId"))
+	var req struct {
+		Reason string `json:"reason" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
-var task models.DeliveryTask
-if err := database.DB.First(&task, taskID).Error; err != nil {
-c.JSON(http.StatusNotFound, gin.H{"error": "delivery task not found"})
-return
-}
-if task.Status == models.DeliveryTaskStatusDone || task.Status == models.DeliveryTaskStatusRejected {
-c.JSON(http.StatusBadRequest, gin.H{"error": "task already completed or rejected"})
-return
-}
+	var task models.DeliveryTask
+	if err := database.DB.First(&task, taskID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "delivery task not found"})
+		return
+	}
+	if task.Status == models.DeliveryTaskStatusDone || task.Status == models.DeliveryTaskStatusRejected {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "task already completed or rejected"})
+		return
+	}
 
-task.Status = models.DeliveryTaskStatusRejected
-task.RejectReason = "[商家退菜] " + req.Reason
-task.WaiterID = nil
-database.DB.Save(&task)
+	task.Status = models.DeliveryTaskStatusRejected
+	task.RejectReason = "[商家退菜] " + req.Reason
+	task.WaiterID = nil
+	database.DB.Save(&task)
 
-database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").Preload("Waiter.Area").
-First(&task, taskID)
-c.JSON(http.StatusOK, task)
+	database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").Preload("Waiter.Area").
+		First(&task, taskID)
+	populateTaskTables([]models.DeliveryTask{task})
+	c.JSON(http.StatusOK, task)
 }

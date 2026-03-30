@@ -26,9 +26,30 @@
       item-value="task_id"
     >
       <template #item.table_ids="{ item }">
-        <v-chip color="orange-darken-2" size="small">
-          桌 {{ tableLabel(item.table_ids) }}
+        <template v-if="item.tables && item.tables.length">
+          <v-chip
+            v-for="t in item.tables"
+            :key="t.table_id"
+            color="orange-darken-2"
+            size="small"
+            class="mr-1"
+          >
+            {{ t.table_no }}
+          </v-chip>
+        </template>
+        <span v-else class="text-grey text-caption">{{ tableLabel(item.table_ids) }}</span>
+      </template>
+
+      <template #item.area="{ item }">
+        <v-chip
+          v-if="item.tables && item.tables.length && item.tables[0].area"
+          color="blue-grey"
+          variant="tonal"
+          size="small"
+        >
+          {{ item.tables[0].area.name }}
         </v-chip>
+        <span v-else class="text-grey text-caption">—</span>
       </template>
 
       <template #item.dish="{ item }">
@@ -78,7 +99,12 @@
         <v-card-text>
           <div class="mb-3 text-body-2">
             传菜任务 #{{ returnTarget?.task_id }} —
-            桌 {{ tableLabel(returnTarget?.table_ids) }}
+            <template v-if="returnTarget?.tables && returnTarget.tables.length">
+              桌 {{ returnTarget.tables.map(t => t.table_no).join('、') }}
+            </template>
+            <template v-else>
+              桌 {{ tableLabel(returnTarget?.table_ids) }}
+            </template>
           </div>
           <v-select
             v-model="returnReason"
@@ -134,6 +160,7 @@ const returnReasons = ['菜品损坏', '上错菜', '顾客退菜', '其他']
 
 const headers = [
   { title: '任务ID', key: 'task_id', width: 80 },
+  { title: '区域', key: 'area', sortable: false, width: 120 },
   { title: '餐桌', key: 'table_ids', sortable: false },
   { title: '菜品', key: 'dish', sortable: false },
   { title: '传菜员', key: 'waiter', sortable: false },

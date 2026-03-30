@@ -49,6 +49,7 @@ type DeliveryTask struct {
 
 	CookingTask *CookingTask `json:"cooking_task,omitempty"`
 	Waiter      *Waiter      `json:"waiter,omitempty"`
+	Tables      []*Table     `gorm:"-" json:"tables,omitempty"`
 }
 
 func (DeliveryTask) TableName() string { return "delivery_task" }
