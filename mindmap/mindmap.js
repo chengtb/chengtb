@@ -901,6 +901,17 @@ class MindMap {
     });
   }
 
+  /** Return the depth of a node (root = 0, child of root = 1, …). */
+  _nodeDepth(id) {
+    let depth = 0;
+    let node = this._nodes.get(id);
+    while (node && node.parentId !== null) {
+      depth++;
+      node = this._nodes.get(node.parentId);
+    }
+    return depth;
+  }
+
   /** Depth-first traversal of a subtree rooted at rootId. */
   _visitSubtree(rootId, fn) {
     const node = this._nodes.get(rootId);
@@ -1071,9 +1082,22 @@ class MindMap {
       // Apply node style, then enforce max-width and auto height (no fixed width/height)
       Object.assign(el.style, node.style);
       el.style.position = 'absolute';
-      el.style.maxWidth = nodeMaxWidth + 'px';
+
+      // Size scales with depth: level 1 (root) is largest; level 4+ is smallest
+      const depth = this._nodeDepth(node.id);
+      const depthCapped = Math.min(depth, 3); // 0,1,2,3+
+      const levelSizes = [
+        { maxWidth: 260, minHeight: 44, fontSize: '18px', padding: '10px 20px' }, // depth 0 (root)
+        { maxWidth: 220, minHeight: 38, fontSize: '15px', padding: '8px 16px' },  // depth 1
+        { maxWidth: 190, minHeight: 32, fontSize: '13px', padding: '6px 12px' },  // depth 2
+        { maxWidth: 160, minHeight: 26, fontSize: '12px', padding: '4px 10px' },  // depth 3+
+      ];
+      const sz = levelSizes[depthCapped];
+      el.style.maxWidth = sz.maxWidth + 'px';
+      el.style.minHeight = sz.minHeight + 'px';
+      el.style.fontSize = sz.fontSize;
+      el.style.padding = sz.padding;
       el.style.height = 'auto';
-      el.style.minHeight = nodeHeight + 'px';
       el.style.display = 'flex';
       el.style.flexDirection = 'column';
       el.style.alignItems = 'flex-start';
