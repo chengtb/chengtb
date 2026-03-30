@@ -64,9 +64,14 @@ func WaiterWebSocket(c *gin.Context) {
 		return
 	}
 
+	areaID := 0
+	if waiter.AreaID != nil {
+		areaID = *waiter.AreaID
+	}
+
 	client := &services.WaiterWSClient{
 		WaiterID: waiterID,
-		Area:     waiter.AreaAssigned,
+		AreaID:   areaID,
 		Conn:     conn,
 		Send:     make(chan []byte, 256),
 	}

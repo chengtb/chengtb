@@ -15,12 +15,14 @@ const (
 )
 
 type Waiter struct {
-	WaiterID     int          `gorm:"primaryKey;autoIncrement;column:waiter_id" json:"waiter_id"`
-	Name         string       `gorm:"column:name;not null;size:100" json:"name"`
-	Phone        string       `gorm:"column:phone;size:20" json:"phone"`
-	AreaAssigned string       `gorm:"column:area_assigned;size:50" json:"area_assigned"`
-	Status       WaiterStatus `gorm:"column:status;type:enum('online','offline');default:'offline'" json:"status"`
-	CreatedAt    time.Time    `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	WaiterID  int          `gorm:"primaryKey;autoIncrement;column:waiter_id" json:"waiter_id"`
+	Name      string       `gorm:"column:name;not null;size:100" json:"name"`
+	Phone     string       `gorm:"column:phone;size:20" json:"phone"`
+	AreaID    *int         `gorm:"column:area_id" json:"area_id"`
+	Status    WaiterStatus `gorm:"column:status;type:enum('online','offline');default:'offline'" json:"status"`
+	CreatedAt time.Time    `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+
+	Area *DiningArea `json:"area,omitempty"`
 }
 
 func (Waiter) TableName() string { return "waiter" }

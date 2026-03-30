@@ -131,12 +131,12 @@ func notifyWaiters(cookingTask models.CookingTask, deliveryTask models.DeliveryT
 	}
 	// Determine the area based on the first table in table_ids
 	var tableIDs []int
-	area := ""
+	areaID := 0
 	if jsonErr := json.Unmarshal(cookingTask.TableIDs, &tableIDs); jsonErr == nil && len(tableIDs) > 0 {
 		var table models.Table
-		if err := database.DB.First(&table, tableIDs[0]).Error; err == nil {
-			area = table.Area
+		if err := database.DB.First(&table, tableIDs[0]).Error; err == nil && table.AreaID != nil {
+			areaID = *table.AreaID
 		}
 	}
-	services.WaiterHub.BroadcastNewTask(area, msg)
+	services.WaiterHub.BroadcastNewTask(areaID, msg)
 }

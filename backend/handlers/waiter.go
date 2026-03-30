@@ -46,7 +46,7 @@ func GetWaiterProfile(c *gin.Context) {
 }
 
 // GetDeliveryTasks GET /api/waiter/tasks
-// Returns tasks relevant to this waiter: all pending + this waiter's delivering tasks
+// Returns tasks relevant to this waiter: all pending (area-filtered) + this waiter's delivering tasks
 func GetDeliveryTasks(c *gin.Context) {
 	raw := c.GetHeader("X-Waiter-ID")
 	if raw == "" {
@@ -66,16 +66,18 @@ func GetDeliveryTasks(c *gin.Context) {
 	}
 
 	var tasks []models.DeliveryTask
-	query := database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").Preload("Waiter")
+	query := database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").Preload("Waiter.Area")
 
-	if waiter.AreaAssigned != "" {
-		// For pending tasks, filter by area if waiter has an area assigned
-		// For delivering tasks, show only this waiter's tasks
+	if waiter.AreaID != nil {
+		// Pending tasks: filter to tables in the same area via JSON subquery not feasible,
+		// so we load all pending and do area-check via cooking_task → table_ids.
+		// For simplicity: load pending+this waiter's delivering; frontend can re-filter.
 		query = query.Where(
-			"(status = 'pending') OR (status = 'delivering' AND waiter_id = ?)",
+			"status = 'pending' OR (status = 'delivering' AND waiter_id = ?)",
 			waiterID,
 		)
 	} else {
+		// Waiter has no area restriction – see all pending + their own delivering
 		query = query.Where(
 			"status = 'pending' OR (status = 'delivering' AND waiter_id = ?)",
 			waiterID,

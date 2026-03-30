@@ -81,7 +81,7 @@ func (h *WSHub) ReadPump(client *WSClient) {
 
 type WaiterWSClient struct {
 	WaiterID int
-	Area     string
+	AreaID   int // 0 = all areas
 	Conn     *websocket.Conn
 	Send     chan []byte
 }
@@ -111,12 +111,12 @@ func (h *WaiterWSHub) Unregister(client *WaiterWSClient) {
 }
 
 // BroadcastNewTask sends a new-task notification to all connected waiters.
-// If area is non-empty, only waiters whose area_assigned matches (or is empty) receive it.
-func (h *WaiterWSHub) BroadcastNewTask(area string, msg []byte) {
+// If areaID > 0, only waiters whose AreaID matches (or is 0 = all areas) receive it.
+func (h *WaiterWSHub) BroadcastNewTask(areaID int, msg []byte) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for _, client := range h.clients {
-		if area == "" || client.Area == "" || client.Area == area {
+		if areaID == 0 || client.AreaID == 0 || client.AreaID == areaID {
 			select {
 			case client.Send <- msg:
 			default:

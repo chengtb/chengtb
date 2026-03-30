@@ -15,7 +15,7 @@ import (
 // GetAllTables GET /api/merchant/tables
 func GetAllTables(c *gin.Context) {
 	var tables []models.Table
-	database.DB.Find(&tables)
+	database.DB.Preload("Area").Find(&tables)
 	c.JSON(http.StatusOK, tables)
 }
 
@@ -477,12 +477,63 @@ func UpdateConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "updated"})
 }
 
+
+// ── Dining area management ───────────────────────────────────────────────────
+
+// ListAreas GET /api/merchant/areas
+func ListAreas(c *gin.Context) {
+var areas []models.DiningArea
+database.DB.Order("sort_order ASC, area_id ASC").Find(&areas)
+c.JSON(http.StatusOK, areas)
+}
+
+// CreateArea POST /api/merchant/areas
+func CreateArea(c *gin.Context) {
+var area models.DiningArea
+if err := c.ShouldBindJSON(&area); err != nil {
+c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+return
+}
+if err := database.DB.Create(&area).Error; err != nil {
+c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+return
+}
+c.JSON(http.StatusCreated, area)
+}
+
+// UpdateArea PUT /api/merchant/areas/:areaId
+func UpdateArea(c *gin.Context) {
+id, _ := strconv.Atoi(c.Param("areaId"))
+var area models.DiningArea
+if err := database.DB.First(&area, id).Error; err != nil {
+c.JSON(http.StatusNotFound, gin.H{"error": "area not found"})
+return
+}
+if err := c.ShouldBindJSON(&area); err != nil {
+c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+return
+}
+area.AreaID = id
+database.DB.Save(&area)
+c.JSON(http.StatusOK, area)
+}
+
+// DeleteArea DELETE /api/merchant/areas/:areaId
+func DeleteArea(c *gin.Context) {
+id, _ := strconv.Atoi(c.Param("areaId"))
+if err := database.DB.Delete(&models.DiningArea{}, id).Error; err != nil {
+c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+return
+}
+c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
 // ── Waiter management ────────────────────────────────────────────────────────
 
 // ListWaiters GET /api/merchant/waiters
 func ListWaiters(c *gin.Context) {
 var waiters []models.Waiter
-database.DB.Find(&waiters)
+database.DB.Preload("Area").Find(&waiters)
 c.JSON(http.StatusOK, waiters)
 }
 
@@ -497,6 +548,7 @@ if err := database.DB.Create(&waiter).Error; err != nil {
 c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 return
 }
+database.DB.Preload("Area").First(&waiter, waiter.WaiterID)
 c.JSON(http.StatusCreated, waiter)
 }
 
@@ -513,7 +565,8 @@ c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 return
 }
 waiter.WaiterID = id
-database.DB.Save(&waiter)
+database.DB.Omit("Area").Save(&waiter)
+database.DB.Preload("Area").First(&waiter, id)
 c.JSON(http.StatusOK, waiter)
 }
 
@@ -533,7 +586,7 @@ c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 func ListDeliveryTasks(c *gin.Context) {
 status := c.Query("status")
 var tasks []models.DeliveryTask
-q := database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").Preload("Waiter").
+q := database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").Preload("Waiter.Area").
 Order("created_at DESC")
 if status != "" {
 q = q.Where("status = ?", status)
@@ -569,7 +622,7 @@ task.RejectReason = "[商家退菜] " + req.Reason
 task.WaiterID = nil
 database.DB.Save(&task)
 
-database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").Preload("Waiter").
+database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").Preload("Waiter.Area").
 First(&task, taskID)
 c.JSON(http.StatusOK, task)
 }

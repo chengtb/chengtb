@@ -23,7 +23,10 @@
           <v-card-title class="text-center text-h5" style="cursor:pointer" @click="openOrderDetail(table)">
             {{ table.table_no }}
           </v-card-title>
-          <v-card-subtitle class="text-center">{{ statusLabel(table.status) }} · {{ table.capacity }}人</v-card-subtitle>
+          <v-card-subtitle class="text-center">
+            {{ statusLabel(table.status) }} · {{ table.capacity }}人
+            <span v-if="table.area" class="ml-1 text-caption">[{{ table.area.name }}]</span>
+          </v-card-subtitle>
           <v-card-actions class="justify-center pa-1">
             <v-btn size="x-small" icon="mdi-pencil" variant="text" @click.stop="openEdit(table)" />
             <v-btn size="x-small" icon="mdi-delete" variant="text" color="error" @click.stop="deleteTable(table)" />
@@ -40,6 +43,16 @@
         <v-card-text>
           <v-text-field v-model="form.table_no" label="桌号" variant="outlined" class="mb-3" />
           <v-text-field v-model.number="form.capacity" label="容纳人数" type="number" variant="outlined" class="mb-3" />
+          <v-select
+            v-model="form.area_id"
+            :items="areaOptions"
+            item-title="label"
+            item-value="value"
+            label="所属区域"
+            variant="outlined"
+            clearable
+            class="mb-3"
+          />
           <v-select
             v-model="form.status"
             :items="statusOptions"
@@ -87,18 +100,24 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '../api'
 
 const tables = ref([])
+const areas = ref([])
 const loading = ref(true)
 const formDialog = ref(false)
 const orderDialog = ref(false)
 const editing = ref(false)
-const form = ref({ table_id: null, table_no: '', capacity: 4, status: 'idle' })
+const form = ref({ table_id: null, table_no: '', capacity: 4, status: 'idle', area_id: null })
 const selectedTable = ref(null)
 const tableOrders = ref([])
 const loadingOrders = ref(false)
+
+const areaOptions = computed(() => [
+  { label: '无区域', value: null },
+  ...areas.value.map(a => ({ label: a.name, value: a.area_id })),
+])
 
 const statusColorMap = {
   idle: 'success',
@@ -143,13 +162,13 @@ async function fetchTables() {
 
 function openAdd() {
   editing.value = false
-  form.value = { table_id: null, table_no: '', capacity: 4, status: 'idle' }
+  form.value = { table_id: null, table_no: '', capacity: 4, status: 'idle', area_id: null }
   formDialog.value = true
 }
 
 function openEdit(table) {
   editing.value = true
-  form.value = { table_id: table.table_id, table_no: table.table_no, capacity: table.capacity, status: table.status }
+  form.value = { table_id: table.table_id, table_no: table.table_no, capacity: table.capacity, status: table.status, area_id: table.area_id ?? null }
   formDialog.value = true
 }
 
@@ -187,5 +206,11 @@ async function openOrderDetail(table) {
   }
 }
 
-onMounted(fetchTables)
+onMounted(async () => {
+  await fetchTables()
+  try {
+    const res = await api.get('/areas')
+    areas.value = res.data || []
+  } catch {}
+})
 </script>

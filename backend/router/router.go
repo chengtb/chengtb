@@ -76,6 +76,11 @@ func Setup() *gin.Engine {
 		merchant.PUT("/waiters/:waiterId", handlers.UpdateWaiter)
 		merchant.DELETE("/waiters/:waiterId", handlers.DeleteWaiter)
 
+		merchant.GET("/areas", handlers.ListAreas)
+		merchant.POST("/areas", handlers.CreateArea)
+		merchant.PUT("/areas/:areaId", handlers.UpdateArea)
+		merchant.DELETE("/areas/:areaId", handlers.DeleteArea)
+
 		merchant.GET("/delivery-tasks", handlers.ListDeliveryTasks)
 		merchant.PUT("/delivery-tasks/:taskId/return", handlers.ReturnDishCommand)
 
