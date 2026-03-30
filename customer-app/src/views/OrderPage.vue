@@ -94,7 +94,7 @@
         <div v-if="cart.items.value.length === 0" style="padding:20px;text-align:center">
           <van-empty description="购物车空空如也" />
         </div>
-        <div v-for="item in cart.items.value" :key="item.id" class="cart-item">
+        <div v-for="item in cart.items.value" :key="item.item_id" class="cart-item">
           <span class="cart-item-name">{{ item.dish?.name || '未知菜品' }}</span>
           <span class="cart-item-price">¥{{ ((item.dish?.price || 0) / 100).toFixed(2) }}</span>
           <van-stepper
@@ -159,9 +159,9 @@ async function handleQuantityChange(dish, val) {
   }
   const existing = cart.items.value.find(i => i.dish_id === dish.dish_id)
   if (val === 0 && existing) {
-    await cart.removeItem(existing.id)
+    await cart.removeItem(existing.item_id)
   } else if (existing) {
-    await cart.updateItem(existing.id, val)
+    await cart.updateItem(existing.item_id, val)
   } else if (val > 0) {
     await cart.addItem(dish.dish_id, val)
   }
@@ -169,9 +169,9 @@ async function handleQuantityChange(dish, val) {
 
 async function handleCartItemChange(item, val) {
   if (val === 0) {
-    await cart.removeItem(item.id)
+    await cart.removeItem(item.item_id)
   } else {
-    await cart.updateItem(item.id, val)
+    await cart.updateItem(item.item_id, val)
   }
 }
 
