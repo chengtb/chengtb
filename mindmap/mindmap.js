@@ -476,6 +476,7 @@ class MindMap {
       text: data.text != null ? String(data.text) : 'New Node',
       tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
       state: data.state != null ? String(data.state) : '',
+      commentCount: data.commentCount != null ? Math.max(0, parseInt(data.commentCount, 10) || 0) : 0,
       colorScheme: data.colorScheme != null ? String(data.colorScheme) : '',
       layoutType: data.layoutType != null ? String(data.layoutType) : null,
       style: Object.assign(
@@ -617,6 +618,7 @@ class MindMap {
     if (data.text != null) node.text = String(data.text);
     if (data.tags != null) node.tags = Array.isArray(data.tags) ? data.tags.map(String) : [];
     if (data.state != null) node.state = String(data.state);
+    if (data.commentCount != null) node.commentCount = Math.max(0, parseInt(data.commentCount, 10) || 0);
     if (data.colorScheme != null) {
       node.colorScheme = String(data.colorScheme);
       const schemeStyle = MindMap.COLOR_SCHEMES[node.colorScheme] || {};
@@ -853,6 +855,7 @@ class MindMap {
       text: node.text,
       tags: node.tags.slice(),
       state: node.state,
+      commentCount: node.commentCount,
       colorScheme: node.colorScheme,
       layoutType: node.layoutType,
       style: Object.assign({}, node.style),
@@ -1128,6 +1131,18 @@ class MindMap {
       const textSpan = document.createElement('span');
       textSpan.textContent = node.text;
       textEl.appendChild(textSpan);
+
+      // Comment count badge (only shown when > 0)
+      if (node.commentCount > 0) {
+        const commentEl = document.createElement('span');
+        commentEl.style.cssText =
+          'display:inline-flex;align-items:center;gap:2px;' +
+          'padding:1px 5px;border-radius:10px;' +
+          'background:rgba(0,0,0,0.10);font-size:11px;line-height:1.4;flex-shrink:0;';
+        commentEl.innerHTML = `💬 ${node.commentCount}`;
+        textEl.appendChild(commentEl);
+      }
+
       el.appendChild(textEl);
 
       // Tags row (rendered below the text if any tags exist)

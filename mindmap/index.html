@@ -226,6 +226,11 @@
     </div>
 
     <div class="form-group">
+      <label>评论数量</label>
+      <input id="inp-comment-count" type="number" value="0" min="0" />
+    </div>
+
+    <div class="form-group">
       <label>状态图标</label>
       <select id="sel-state">
         <option value="">— 无 —</option>
@@ -270,6 +275,11 @@
     <div class="form-group">
       <label>标签（逗号分隔，留空 = 不修改）</label>
       <input id="upd-tags" type="text" placeholder="留空 = 不修改" />
+    </div>
+
+    <div class="form-group">
+      <label>评论数量（-1 = 不修改）</label>
+      <input id="upd-comment-count" type="number" value="-1" min="-1" />
     </div>
 
     <div class="form-group">
@@ -615,6 +625,7 @@
     const tags    = tagsRaw.split(',').map((t) => t.trim()).filter((t) => t.length > 0);
     const state   = document.getElementById('sel-state').value;
     const colorScheme = document.getElementById('sel-scheme').value;
+    const commentCount = parseInt(document.getElementById('inp-comment-count').value, 10) || 0;
 
     const style = colorScheme ? {} : {
       backgroundColor: bg,
@@ -625,7 +636,7 @@
     };
 
     try {
-      const newId = mm.addNode(parentId, { text, tags, state, colorScheme }, style);
+      const newId = mm.addNode(parentId, { text, tags, state, colorScheme, commentCount }, style);
       // Auto-select new node
       document.getElementById('sel-parent').value = newId;
       document.getElementById('sel-delete').value = newId;
@@ -647,6 +658,9 @@
 
     const tagsRaw = document.getElementById('upd-tags').value.trim();
     if (tagsRaw) data.tags = tagsRaw.split(',').map((t) => t.trim()).filter((t) => t);
+
+    const commentCountVal = parseInt(document.getElementById('upd-comment-count').value, 10);
+    if (!isNaN(commentCountVal) && commentCountVal >= 0) data.commentCount = commentCountVal;
 
     const state = document.getElementById('upd-state').value;
     if (state !== '__keep__') data.state = state;
@@ -719,25 +733,25 @@
     fontSize: '12px',
   };
 
-  const rootId = mm.addNode(null, { id: 'root', text: '📦 frontend-project', tags: ['v2.0', 'main'], state: 'success' }, rootStyle);
+  const rootId = mm.addNode(null, { id: 'root', text: '📦 frontend-project', tags: ['v2.0', 'main'], state: 'success', commentCount: 3 }, rootStyle);
 
-  const srcId  = mm.addNode(rootId, { text: '📁 src', tags: ['src'], state: 'success' }, folderStyle);
+  const srcId  = mm.addNode(rootId, { text: '📁 src', tags: ['src'], state: 'success', commentCount: 5 }, folderStyle);
   mm.addNode(srcId,  { text: '📄 main.ts', tags: ['ts'], state: 'success' }, fileStyle);
-  mm.addNode(srcId,  { text: '📄 App.vue', state: 'warn' }, fileStyle);
+  mm.addNode(srcId,  { text: '📄 App.vue', state: 'warn', commentCount: 2 }, fileStyle);
   const compId = mm.addNode(srcId, { text: '📁 components', tags: ['components'] }, folderStyle);
-  mm.addNode(compId, { text: '📄 Header.vue', state: 'success' }, fileStyle);
+  mm.addNode(compId, { text: '📄 Header.vue', state: 'success', commentCount: 1 }, fileStyle);
   mm.addNode(compId, { text: '📄 Footer.vue' }, fileStyle);
   mm.addNode(compId, { text: '📄 Sidebar.vue' }, fileStyle);
 
-  const docsId = mm.addNode(rootId, { text: '📁 docs', tags: ['docs'], state: 'warn' }, folderStyle);
+  const docsId = mm.addNode(rootId, { text: '📁 docs', tags: ['docs'], state: 'warn', commentCount: 4 }, folderStyle);
   mm.addNode(docsId, { text: '📄 README.md', state: 'success' }, fileStyle);
-  mm.addNode(docsId, { text: '📄 API参考.md', state: 'doing' }, fileStyle);
+  mm.addNode(docsId, { text: '📄 API参考.md', state: 'doing', commentCount: 7 }, fileStyle);
   mm.addNode(docsId, { text: '📄 CHANGELOG.md', state: 'waiting' }, fileStyle);
 
   const testId = mm.addNode(rootId, { text: '📁 tests', tags: ['test', 'ci'], state: 'success' }, folderStyle);
-  mm.addNode(testId, { text: '📄 unit.spec.ts', state: 'success' }, fileStyle);
+  mm.addNode(testId, { text: '📄 unit.spec.ts', state: 'success', commentCount: 2 }, fileStyle);
   mm.addNode(testId, { text: '📄 e2e.spec.ts', state: 'warn' }, fileStyle);
-  mm.addNode(testId, { text: '📄 lint.spec.ts', state: 'error' }, fileStyle);
+  mm.addNode(testId, { text: '📄 lint.spec.ts', state: 'error', commentCount: 3 }, fileStyle);
 
   mm.addNode(rootId, { text: '📄 package.json', tags: ['config'] }, fileStyle);
   mm.addNode(rootId, { text: '📄 vite.config.ts', tags: ['config'] }, fileStyle);
