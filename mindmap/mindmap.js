@@ -1129,19 +1129,8 @@ class MindMap {
         textEl.appendChild(iconEl);
       }
       const textSpan = document.createElement('span');
-      textSpan.textContent = node.text;
+      textSpan.textContent = node.commentCount > 0 ? `${node.text} ${node.commentCount}` : node.text;
       textEl.appendChild(textSpan);
-
-      // Comment count badge (only shown when > 0)
-      if (node.commentCount > 0) {
-        const commentEl = document.createElement('span');
-        commentEl.style.cssText =
-          'display:inline-flex;align-items:center;gap:2px;' +
-          'padding:1px 5px;border-radius:10px;' +
-          'background:rgba(0,0,0,0.10);font-size:11px;line-height:1.4;flex-shrink:0;';
-        commentEl.innerHTML = `💬 ${node.commentCount}`;
-        textEl.appendChild(commentEl);
-      }
 
       el.appendChild(textEl);
 
