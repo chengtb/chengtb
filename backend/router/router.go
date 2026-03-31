@@ -1,0 +1,114 @@
+package router
+
+import (
+	"restaurant-system/handlers"
+	"restaurant-system/middleware"
+
+	"github.com/gin-gonic/gin"
+)
+
+func Setup() *gin.Engine {
+	r := gin.Default()
+	r.Use(middleware.CORS())
+
+	// WebSocket
+	r.GET("/ws/cart/:sessionId", handlers.CartWebSocket)
+	r.GET("/ws/waiter/:waiterId", handlers.WaiterWebSocket)
+
+	// Customer APIs
+	customer := r.Group("/api/customer")
+	{
+		customer.GET("/table/:tableId", handlers.GetTableInfo)
+		customer.POST("/cart/session", handlers.CreateOrGetCartSession)
+		customer.GET("/cart/session/:sessionId", handlers.GetCartSession)
+		customer.POST("/cart/session/:sessionId/item", handlers.AddItemToCart)
+		customer.PUT("/cart/session/:sessionId/item/:itemId", handlers.UpdateCartItem)
+		customer.DELETE("/cart/session/:sessionId/item/:itemId", handlers.RemoveCartItem)
+		customer.POST("/cart/session/:sessionId/submit", handlers.SubmitOrder)
+		customer.GET("/order/:orderId", handlers.GetOrderStatus)
+		customer.GET("/dishes", handlers.GetDishes)
+		customer.GET("/categories", handlers.GetCategories)
+		customer.GET("/dishes/category/:categoryId", handlers.GetDishesByCategory)
+	}
+
+	// Merchant APIs
+	merchant := r.Group("/api/merchant")
+	{
+		merchant.GET("/tables", handlers.GetAllTables)
+		merchant.POST("/tables", handlers.CreateTable)
+		merchant.PUT("/tables/:tableId", handlers.UpdateTable)
+		merchant.DELETE("/tables/:tableId", handlers.DeleteTable)
+		merchant.GET("/tables/:tableId/order", handlers.GetTableOrder)
+		merchant.PUT("/tables/:tableId/status", handlers.UpdateTableStatus)
+
+		merchant.GET("/orders", handlers.ListOrders)
+		merchant.GET("/orders/:orderId", handlers.GetOrderDetails)
+		merchant.PUT("/orders/:orderId/status", handlers.UpdateOrderStatus)
+		merchant.POST("/orders/:orderId/payment", handlers.RecordPayment)
+		merchant.POST("/orders/:orderId/dispatch", handlers.DispatchOrder)
+		merchant.POST("/orders/:orderId/items/:itemId/dispatch", handlers.DispatchOrderItem)
+
+		merchant.GET("/chefs", handlers.ListChefs)
+		merchant.POST("/chefs", handlers.CreateChef)
+		merchant.PUT("/chefs/:chefId", handlers.UpdateChef)
+		merchant.GET("/chefs/:chefId/tasks", handlers.ListChefTasks)
+
+		merchant.GET("/recipes", handlers.ListRecipes)
+		merchant.POST("/recipes", handlers.CreateRecipe)
+		merchant.PUT("/recipes/:recipeId", handlers.UpdateRecipe)
+		merchant.DELETE("/recipes/:recipeId", handlers.DeleteRecipe)
+
+		merchant.GET("/dishes", handlers.MerchantListDishes)
+		merchant.POST("/dishes", handlers.CreateDish)
+		merchant.PUT("/dishes/:dishId", handlers.UpdateDish)
+		merchant.DELETE("/dishes/:dishId", handlers.DeleteDish)
+
+		merchant.GET("/categories", handlers.ListCategories)
+		merchant.POST("/categories", handlers.CreateCategory)
+		merchant.PUT("/categories/:categoryId", handlers.UpdateCategory)
+		merchant.DELETE("/categories/:categoryId", handlers.DeleteCategory)
+
+		merchant.GET("/tasks", handlers.ListTasks)
+		merchant.PUT("/tasks/:taskId/reassign", handlers.ReassignTask)
+
+		merchant.GET("/waiters", handlers.ListWaiters)
+		merchant.POST("/waiters", handlers.CreateWaiter)
+		merchant.PUT("/waiters/:waiterId", handlers.UpdateWaiter)
+		merchant.DELETE("/waiters/:waiterId", handlers.DeleteWaiter)
+
+		merchant.GET("/areas", handlers.ListAreas)
+		merchant.POST("/areas", handlers.CreateArea)
+		merchant.PUT("/areas/:areaId", handlers.UpdateArea)
+		merchant.DELETE("/areas/:areaId", handlers.DeleteArea)
+
+		merchant.GET("/delivery-tasks", handlers.ListDeliveryTasks)
+		merchant.PUT("/delivery-tasks/:taskId/return", handlers.ReturnDishCommand)
+
+		merchant.GET("/config", handlers.GetConfig)
+		merchant.PUT("/config", handlers.UpdateConfig)
+	}
+
+	// Chef APIs
+	chef := r.Group("/api/chef")
+	{
+		chef.POST("/auth/login", handlers.ChefLogin)
+		chef.GET("/chefs/:chefId", handlers.GetChefProfile)
+		chef.GET("/tasks", handlers.GetChefTasks)
+		chef.GET("/tasks/:taskId", handlers.GetChefTaskDetails)
+		chef.PUT("/tasks/:taskId/complete", handlers.CompleteTask)
+	}
+
+	// Waiter APIs
+	waiter := r.Group("/api/waiter")
+	{
+		waiter.POST("/auth/login", handlers.WaiterLogin)
+		waiter.GET("/waiters/:waiterId", handlers.GetWaiterProfile)
+		waiter.GET("/tasks", handlers.GetDeliveryTasks)
+		waiter.GET("/tasks/:taskId", handlers.GetDeliveryTaskDetails)
+		waiter.PUT("/tasks/:taskId/pickup", handlers.PickupDeliveryTask)
+		waiter.PUT("/tasks/:taskId/deliver", handlers.ConfirmDelivery)
+		waiter.PUT("/tasks/:taskId/reject", handlers.RejectDeliveryTask)
+	}
+
+	return r
+}

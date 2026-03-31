@@ -1,0 +1,645 @@
+package handlers
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+
+	"restaurant-system/database"
+	"restaurant-system/models"
+	"restaurant-system/services"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+)
+
+// GetAllTables GET /api/merchant/tables
+func GetAllTables(c *gin.Context) {
+	var tables []models.Table
+	database.DB.Preload("Area").Find(&tables)
+	c.JSON(http.StatusOK, tables)
+}
+
+// CreateTable POST /api/merchant/tables
+func CreateTable(c *gin.Context) {
+	var table models.Table
+	if err := c.ShouldBindJSON(&table); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := database.DB.Create(&table).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, table)
+}
+
+// UpdateTable PUT /api/merchant/tables/:tableId
+func UpdateTable(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("tableId"))
+	var table models.Table
+	if err := database.DB.First(&table, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "table not found"})
+		return
+	}
+	if err := c.ShouldBindJSON(&table); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	table.TableID = id
+	database.DB.Save(&table)
+	c.JSON(http.StatusOK, table)
+}
+
+// DeleteTable DELETE /api/merchant/tables/:tableId
+func DeleteTable(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("tableId"))
+	if err := database.DB.Delete(&models.Table{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+// GetTableOrder GET /api/merchant/tables/:tableId/order
+func GetTableOrder(c *gin.Context) {
+	tableID, _ := strconv.Atoi(c.Param("tableId"))
+	var order models.Order
+	err := database.DB.Where("table_id = ? AND status NOT IN ('completed','cancelled')", tableID).
+		Preload("Items.Dish").Order("created_at DESC").First(&order).Error
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "no active order"})
+		return
+	}
+	c.JSON(http.StatusOK, order)
+}
+
+// UpdateTableStatus PUT /api/merchant/tables/:tableId/status
+func UpdateTableStatus(c *gin.Context) {
+	tableID, _ := strconv.Atoi(c.Param("tableId"))
+	var req struct {
+		Status models.TableStatus `json:"status" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := database.DB.Model(&models.Table{}).Where("table_id = ?", tableID).
+		Update("status", req.Status).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "updated"})
+}
+
+// ListOrders GET /api/merchant/orders
+func ListOrders(c *gin.Context) {
+	status := c.Query("status")
+	tableID, _ := strconv.Atoi(c.Query("table_id"))
+	orders, err := services.ListOrders(status, tableID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, orders)
+}
+
+// GetOrderDetails GET /api/merchant/orders/:orderId
+func GetOrderDetails(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("orderId"))
+	order, err := services.GetOrder(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})
+		return
+	}
+	c.JSON(http.StatusOK, order)
+}
+
+// UpdateOrderStatus PUT /api/merchant/orders/:orderId/status
+func UpdateOrderStatus(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("orderId"))
+	var req struct {
+		Status models.OrderStatus `json:"status" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	order, err := services.UpdateOrderStatus(id, req.Status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, order)
+}
+
+// RecordPayment POST /api/merchant/orders/:orderId/payment
+func RecordPayment(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("orderId"))
+	var req struct {
+		Method string `json:"method" binding:"required"`
+		IsVIP  bool   `json:"is_vip"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	order, err := services.RecordPayment(id, req.Method, req.IsVIP)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, order)
+}
+
+// DispatchOrder POST /api/merchant/orders/:orderId/dispatch
+func DispatchOrder(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("orderId"))
+	results, err := services.ManualDispatch(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, results)
+}
+
+// DispatchOrderItem POST /api/merchant/orders/:orderId/items/:itemId/dispatch
+func DispatchOrderItem(c *gin.Context) {
+	orderID, _ := strconv.Atoi(c.Param("orderId"))
+	itemID, _ := strconv.Atoi(c.Param("itemId"))
+	var req struct {
+		ChefID int `json:"chef_id"`
+	}
+	c.ShouldBindJSON(&req) // body is optional
+	result, err := services.ManualDispatchItem(orderID, itemID, req.ChefID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// --- Chef management ---
+
+// ListChefs GET /api/merchant/chefs
+func ListChefs(c *gin.Context) {
+	var chefs []models.Chef
+	database.DB.Preload("Recipes").Find(&chefs)
+	c.JSON(http.StatusOK, chefs)
+}
+
+// CreateChef POST /api/merchant/chefs
+func CreateChef(c *gin.Context) {
+	var req struct {
+		models.Chef
+		RecipeIDs []int `json:"recipe_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	chef := req.Chef
+	if err := database.DB.Omit("Recipes").Create(&chef).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if len(req.RecipeIDs) > 0 {
+		recipes := make([]*models.Recipe, len(req.RecipeIDs))
+		for i, rid := range req.RecipeIDs {
+			recipes[i] = &models.Recipe{RecipeID: rid}
+		}
+		if err := database.DB.Model(&chef).Association("Recipes").Replace(recipes); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	database.DB.Preload("Recipes").First(&chef, chef.ChefID)
+	c.JSON(http.StatusCreated, chef)
+}
+
+// UpdateChef PUT /api/merchant/chefs/:chefId
+func UpdateChef(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("chefId"))
+	var chef models.Chef
+	if err := database.DB.First(&chef, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "chef not found"})
+		return
+	}
+	var req struct {
+		models.Chef
+		RecipeIDs []int `json:"recipe_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	chef.Name = req.Name
+	chef.MaxLoad = req.MaxLoad
+	chef.IsActive = req.IsActive
+	if err := database.DB.Omit("Recipes").Save(&chef).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	recipes := make([]*models.Recipe, len(req.RecipeIDs))
+	for i, rid := range req.RecipeIDs {
+		recipes[i] = &models.Recipe{RecipeID: rid}
+	}
+	if err := database.DB.Model(&chef).Association("Recipes").Replace(recipes); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	database.DB.Preload("Recipes").First(&chef, chef.ChefID)
+	c.JSON(http.StatusOK, chef)
+}
+
+// --- Recipe management ---
+
+// ListRecipes GET /api/merchant/recipes
+func ListRecipes(c *gin.Context) {
+	var recipes []models.Recipe
+	database.DB.Preload("Dish").Find(&recipes)
+	c.JSON(http.StatusOK, recipes)
+}
+
+// CreateRecipe POST /api/merchant/recipes
+func CreateRecipe(c *gin.Context) {
+	var recipe models.Recipe
+	if err := c.ShouldBindJSON(&recipe); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := database.DB.Create(&recipe).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, recipe)
+}
+
+// UpdateRecipe PUT /api/merchant/recipes/:recipeId
+func UpdateRecipe(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("recipeId"))
+	var recipe models.Recipe
+	if err := database.DB.First(&recipe, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "recipe not found"})
+		return
+	}
+	if err := c.ShouldBindJSON(&recipe); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	recipe.RecipeID = id
+	if err := database.DB.Model(&recipe).Updates(map[string]interface{}{
+		"dish_id":    recipe.DishID,
+		"name":       recipe.Name,
+		"portion":    recipe.Portion,
+		"is_enabled": recipe.IsEnabled,
+	}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, recipe)
+}
+
+// DeleteRecipe DELETE /api/merchant/recipes/:recipeId
+func DeleteRecipe(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("recipeId"))
+	if err := database.DB.Delete(&models.Recipe{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+// --- Dish management ---
+
+// MerchantListDishes GET /api/merchant/dishes
+func MerchantListDishes(c *gin.Context) {
+	var dishes []models.Dish
+	database.DB.Preload("Category").Find(&dishes)
+	c.JSON(http.StatusOK, dishes)
+}
+
+// CreateDish POST /api/merchant/dishes
+func CreateDish(c *gin.Context) {
+	var dish models.Dish
+	if err := c.ShouldBindJSON(&dish); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := database.DB.Create(&dish).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, dish)
+}
+
+// UpdateDish PUT /api/merchant/dishes/:dishId
+func UpdateDish(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("dishId"))
+	var dish models.Dish
+	if err := database.DB.First(&dish, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "dish not found"})
+		return
+	}
+	if err := c.ShouldBindJSON(&dish); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	dish.DishID = id
+	database.DB.Save(&dish)
+	c.JSON(http.StatusOK, dish)
+}
+
+// DeleteDish DELETE /api/merchant/dishes/:dishId
+func DeleteDish(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("dishId"))
+	if err := database.DB.Delete(&models.Dish{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+// --- Category management ---
+
+// ListCategories GET /api/merchant/categories
+func ListCategories(c *gin.Context) {
+	var cats []models.Category
+	database.DB.Order("sort_order ASC").Preload("Dishes", func(db *gorm.DB) *gorm.DB {
+		return db.Order("sort_order ASC")
+	}).Find(&cats)
+	c.JSON(http.StatusOK, cats)
+}
+
+// CreateCategory POST /api/merchant/categories
+func CreateCategory(c *gin.Context) {
+	var cat models.Category
+	if err := c.ShouldBindJSON(&cat); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := database.DB.Create(&cat).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, cat)
+}
+
+// UpdateCategory PUT /api/merchant/categories/:categoryId
+func UpdateCategory(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("categoryId"))
+	var cat models.Category
+	if err := database.DB.First(&cat, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "category not found"})
+		return
+	}
+	if err := c.ShouldBindJSON(&cat); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	cat.CategoryID = id
+	database.DB.Save(&cat)
+	c.JSON(http.StatusOK, cat)
+}
+
+// DeleteCategory DELETE /api/merchant/categories/:categoryId
+func DeleteCategory(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("categoryId"))
+	if err := database.DB.Delete(&models.Category{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+// --- Cooking tasks ---
+
+// ListTasks GET /api/merchant/tasks
+func ListTasks(c *gin.Context) {
+	var tasks []models.CookingTask
+	database.DB.Preload("Chef").Preload("Recipe").Preload("Dish").
+		Order("priority DESC, created_at ASC").Find(&tasks)
+	c.JSON(http.StatusOK, tasks)
+}
+
+// ListChefTasks GET /api/merchant/chefs/:chefId/tasks
+func ListChefTasks(c *gin.Context) {
+	chefID, _ := strconv.Atoi(c.Param("chefId"))
+	var tasks []models.CookingTask
+	database.DB.Preload("Recipe").Preload("Dish").
+		Where("chef_id = ? AND status IN ?", chefID, []string{"pending", "cooking"}).
+		Order("priority DESC, created_at ASC").
+		Find(&tasks)
+	c.JSON(http.StatusOK, tasks)
+}
+
+// ReassignTask PUT /api/merchant/tasks/:taskId/reassign
+func ReassignTask(c *gin.Context) {
+	taskID, _ := strconv.Atoi(c.Param("taskId"))
+	var req struct {
+		ChefID int `json:"chef_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	task, err := services.ReassignTask(taskID, req.ChefID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, task)
+}
+
+// --- System config ---
+
+// GetConfig GET /api/merchant/config
+func GetConfig(c *gin.Context) {
+	var configs []models.SystemConfig
+	database.DB.Find(&configs)
+	result := map[string]string{}
+	for _, cfg := range configs {
+		result[cfg.ConfigKey] = cfg.ConfigValue
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// UpdateConfig PUT /api/merchant/config
+func UpdateConfig(c *gin.Context) {
+	var updates map[string]string
+	if err := c.ShouldBindJSON(&updates); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	for k, v := range updates {
+		cfg := models.SystemConfig{ConfigKey: k, ConfigValue: v}
+		database.DB.Save(&cfg)
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "updated"})
+}
+
+
+// ── Dining area management ───────────────────────────────────────────────────
+
+// ListAreas GET /api/merchant/areas
+func ListAreas(c *gin.Context) {
+var areas []models.DiningArea
+database.DB.Order("sort_order ASC, area_id ASC").Find(&areas)
+c.JSON(http.StatusOK, areas)
+}
+
+// CreateArea POST /api/merchant/areas
+func CreateArea(c *gin.Context) {
+var area models.DiningArea
+if err := c.ShouldBindJSON(&area); err != nil {
+c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+return
+}
+if err := database.DB.Create(&area).Error; err != nil {
+c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+return
+}
+c.JSON(http.StatusCreated, area)
+}
+
+// UpdateArea PUT /api/merchant/areas/:areaId
+func UpdateArea(c *gin.Context) {
+id, _ := strconv.Atoi(c.Param("areaId"))
+var area models.DiningArea
+if err := database.DB.First(&area, id).Error; err != nil {
+c.JSON(http.StatusNotFound, gin.H{"error": "area not found"})
+return
+}
+if err := c.ShouldBindJSON(&area); err != nil {
+c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+return
+}
+area.AreaID = id
+database.DB.Save(&area)
+c.JSON(http.StatusOK, area)
+}
+
+// DeleteArea DELETE /api/merchant/areas/:areaId
+func DeleteArea(c *gin.Context) {
+id, _ := strconv.Atoi(c.Param("areaId"))
+if err := database.DB.Delete(&models.DiningArea{}, id).Error; err != nil {
+c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+return
+}
+c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+// ── Waiter management ────────────────────────────────────────────────────────
+
+// ListWaiters GET /api/merchant/waiters
+func ListWaiters(c *gin.Context) {
+var waiters []models.Waiter
+database.DB.Preload("Area").Find(&waiters)
+c.JSON(http.StatusOK, waiters)
+}
+
+// CreateWaiter POST /api/merchant/waiters
+func CreateWaiter(c *gin.Context) {
+var waiter models.Waiter
+if err := c.ShouldBindJSON(&waiter); err != nil {
+c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+return
+}
+if err := database.DB.Create(&waiter).Error; err != nil {
+c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+return
+}
+database.DB.Preload("Area").First(&waiter, waiter.WaiterID)
+c.JSON(http.StatusCreated, waiter)
+}
+
+// UpdateWaiter PUT /api/merchant/waiters/:waiterId
+func UpdateWaiter(c *gin.Context) {
+id, _ := strconv.Atoi(c.Param("waiterId"))
+var waiter models.Waiter
+if err := database.DB.First(&waiter, id).Error; err != nil {
+c.JSON(http.StatusNotFound, gin.H{"error": "waiter not found"})
+return
+}
+if err := c.ShouldBindJSON(&waiter); err != nil {
+c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+return
+}
+waiter.WaiterID = id
+database.DB.Omit("Area").Save(&waiter)
+database.DB.Preload("Area").First(&waiter, id)
+c.JSON(http.StatusOK, waiter)
+}
+
+// DeleteWaiter DELETE /api/merchant/waiters/:waiterId
+func DeleteWaiter(c *gin.Context) {
+id, _ := strconv.Atoi(c.Param("waiterId"))
+if err := database.DB.Delete(&models.Waiter{}, id).Error; err != nil {
+c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+return
+}
+c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+// ── Delivery tasks (merchant view) ──────────────────────────────────────────
+
+// populateTaskTables loads the Table records (with Area) referenced by a delivery task's
+// table_ids JSON field and stores them in task.Tables.
+func populateTaskTables(tasks []models.DeliveryTask) {
+	for i := range tasks {
+		var ids []int
+		if err := json.Unmarshal(tasks[i].TableIDs, &ids); err != nil || len(ids) == 0 {
+			continue
+		}
+		var tables []*models.Table
+		database.DB.Preload("Area").Where("table_id IN ?", ids).Find(&tables)
+		tasks[i].Tables = tables
+	}
+}
+
+// ListDeliveryTasks GET /api/merchant/delivery-tasks
+func ListDeliveryTasks(c *gin.Context) {
+	status := c.Query("status")
+	var tasks []models.DeliveryTask
+	q := database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").Preload("Waiter.Area").
+		Order("created_at DESC")
+	if status != "" {
+		q = q.Where("status = ?", status)
+	}
+	q.Find(&tasks)
+	populateTaskTables(tasks)
+	c.JSON(http.StatusOK, tasks)
+}
+
+// ReturnDishCommand PUT /api/merchant/delivery-tasks/:taskId/return
+// Merchant issues a return-dish instruction; delivery task transitions to rejected
+func ReturnDishCommand(c *gin.Context) {
+	taskID, _ := strconv.Atoi(c.Param("taskId"))
+	var req struct {
+		Reason string `json:"reason" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var task models.DeliveryTask
+	if err := database.DB.First(&task, taskID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "delivery task not found"})
+		return
+	}
+	if task.Status == models.DeliveryTaskStatusDone || task.Status == models.DeliveryTaskStatusRejected {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "task already completed or rejected"})
+		return
+	}
+
+	task.Status = models.DeliveryTaskStatusRejected
+	task.RejectReason = "[商家退菜] " + req.Reason
+	task.WaiterID = nil
+	database.DB.Save(&task)
+
+	database.DB.Preload("CookingTask.Dish").Preload("CookingTask.Recipe").Preload("Waiter.Area").
+		First(&task, taskID)
+	populateTaskTables([]models.DeliveryTask{task})
+	c.JSON(http.StatusOK, task)
+}

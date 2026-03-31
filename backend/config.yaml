@@ -1,0 +1,16 @@
+# Restaurant QR Ordering System — Server Configuration
+# All values can be overridden by the corresponding environment variable.
+
+server:
+  port: "8080"         # env: SERVER_PORT
+
+database:
+  host: "localhost"    # env: DB_HOST
+  port: "3306"         # env: DB_PORT
+  user: "root"         # env: DB_USER
+  password: ""         # env: DB_PASSWORD
+  name: "restaurant"   # env: DB_NAME
+
+dispatch:
+  interval_sec: 30     # env: DISPATCH_INTERVAL_SEC — how often auto-dispatch runs
+  window_min: 5        # env: DISPATCH_WINDOW_MIN  — order-aggregation time window
