@@ -88,11 +88,14 @@ func (h *Hub) Run() {
 				continue
 			}
 			h.mu.RLock()
+			// When both TableID and Role are set, the message is sent to both
+			// groups (union). Typically only one of them is set per broadcast.
 			if bm.TableID > 0 {
 				for client := range h.tables[bm.TableID] {
 					select {
 					case client.Send <- data:
 					default:
+						// Use goroutine: we hold RLock and Unregister needs Lock.
 						go func(c *Client) { h.Unregister <- c }(client)
 					}
 				}
@@ -124,5 +127,22 @@ func (h *Hub) BroadcastToRole(role ClientType, msg Message) {
 	h.Broadcast <- &BroadcastMessage{
 		Role:    role,
 		Message: msg,
+	}
+}
+
+// RelayToTable forwards a raw message to all other clients at the same table.
+func (h *Hub) RelayToTable(tableID uint, sender *Client, data []byte) {
+	if tableID == 0 {
+		return
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for client := range h.tables[tableID] {
+		if client != sender {
+			select {
+			case client.Send <- data:
+			default:
+			}
+		}
 	}
 }

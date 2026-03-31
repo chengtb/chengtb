@@ -12,8 +12,9 @@ import (
 var upgrader = ws.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	// TODO: Restrict origins in production via environment-based configuration.
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins in development
+		return true
 	},
 }
 

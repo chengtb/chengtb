@@ -42,19 +42,7 @@ func (c *Client) ReadPump() {
 			break
 		}
 		log.Printf("Received message from table %d: %s", c.TableID, string(message))
-		// Broadcast cart update to all clients at the same table
-		if c.TableID > 0 {
-			c.Hub.mu.RLock()
-			for client := range c.Hub.tables[c.TableID] {
-				if client != c {
-					select {
-					case client.Send <- message:
-					default:
-					}
-				}
-			}
-			c.Hub.mu.RUnlock()
-		}
+		c.Hub.RelayToTable(c.TableID, c, message)
 	}
 }
 
