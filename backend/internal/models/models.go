@@ -24,7 +24,10 @@ func InitDB(dsn string) {
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	sqlDB, _ := DB.DB()
+	sqlDB, err := DB.DB()
+	if err != nil {
+		log.Fatalf("Failed to get underlying sql.DB: %v", err)
+	}
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetConnMaxLifetime(time.Hour)
