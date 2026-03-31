@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>目录组织结构 – MindMap Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── top bar ── */
+    header {
+      background: #1a237e;
+      color: #fff;
+      padding: 12px 20px;
+      font-size: 18px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    /* ── main layout ── */
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── left panel ── */
+    .panel {
+      width: 280px;
+      background: #fff;
+      border-right: 1px solid #ddd;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 14px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .panel h3 {
+      font-size: 14px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      color: #333;
+    }
+
+    .form-group input, .form-group select {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .form-group input:focus, .form-group select:focus {
+      border-color: #4285f4;
+    }
+
+    .color-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .color-row input[type="color"] {
+      width: 38px;
+      height: 32px;
+      padding: 2px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .color-row label { flex: 1; }
+
+    button {
+      padding: 9px 0;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: opacity .15s;
+    }
+    button:hover { opacity: .85; }
+
+    .btn-add    { background: #4285f4; color: #fff; }
+    .btn-delete { background: #e53935; color: #fff; }
+    .btn-root   { background: #43a047; color: #fff; }
+    .btn-update { background: #7b1fa2; color: #fff; }
+    .btn-sort   { background: #00838f; color: #fff; }
+
+    hr { border: none; border-top: 1px solid #eee; }
+
+    /* ── event log ── */
+    .log-box {
+      flex: 1;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 12px;
+      font-family: monospace;
+      overflow-y: auto;
+      background: #fafafa;
+      min-height: 120px;
+      max-height: 200px;
+    }
+
+    .log-entry { padding: 3px 0; border-bottom: 1px solid #f0f0f0; }
+    .log-add    { color: #2e7d32; }
+    .log-delete { color: #c62828; }
+    .log-click  { color: #1565c0; }
+    .log-update { color: #6a1b9a; }
+    .log-sort   { color: #00695c; }
+
+    /* ── sort children list ── */
+    #sort-children {
+      width: 100%;
+      min-height: 90px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+      padding: 4px;
+      outline: none;
+    }
+    #sort-children:focus { border-color: #00838f; }
+    .sort-btn-row { display: flex; gap: 8px; }
+
+    /* ── canvas wrapper (holds map) ── */
+    #map-area {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* ── canvas area ── */
+    #map-container {
+      flex: 1;
+      overflow: hidden;
+      background: #e8eaf6;
+      position: relative;
+    }
+
+    /* wrapper canvas – positioned and transformed by MindMap JS */
+    #map-inner {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+  </style>
+</head>
+<body>
+
+<header>📁 目录组织结构 – MindMap</header>
+
+<div class="main">
+
+  <!-- ── control panel ── -->
+  <div class="panel">
+
+    <h3>添加节点</h3>
+
+    <div class="form-group">
+      <label>节点文字</label>
+      <input id="inp-text" type="text" value="新节点" placeholder="节点文字" />
+    </div>
+
+    <div class="form-group">
+      <label>父节点 ID（留空 = 根节点）</label>
+      <select id="sel-parent">
+        <option value="">-- 无（创建根节点）--</option>
+      </select>
+    </div>
+
+    <!-- style customisation -->
+    <div class="form-group">
+      <label>背景色</label>
+      <div class="color-row">
+        <input id="inp-bg" type="color" value="#e3f2fd" />
+        <span id="lbl-bg">#e3f2fd</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>文字颜色</label>
+      <div class="color-row">
+        <input id="inp-fg" type="color" value="#0d47a1" />
+        <span id="lbl-fg">#0d47a1</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>圆角 (px)</label>
+      <input id="inp-radius" type="number" value="6" min="0" max="50" />
+    </div>
+
+    <div class="form-group">
+      <label>字体大小 (px)</label>
+      <input id="inp-fs" type="number" value="14" min="8" max="32" />
+    </div>
+
+    <div class="form-group">
+      <label>标签（逗号分隔）</label>
+      <input id="inp-tags" type="text" placeholder="tag1, tag2, ..." />
+    </div>
+
+    <div class="form-group">
+      <label>评论数量</label>
+      <input id="inp-comment-count" type="number" value="0" min="0" />
+    </div>
+
+    <div class="form-group">
+      <label>状态图标</label>
+      <select id="sel-state">
+        <option value="">— 无 —</option>
+        <option value="success">✓ 成功</option>
+        <option value="warn">! 警告</option>
+        <option value="error">✕ 错误</option>
+        <option value="doing">↻ 进行中</option>
+        <option value="waiting">… 等待中</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>色彩主题</label>
+      <select id="sel-scheme">
+        <option value="">— 默认 —</option>
+        <option value="gray">⬜ 灰色</option>
+        <option value="green">🟩 绿色</option>
+        <option value="blue">🟦 蓝色</option>
+        <option value="orange">🟧 橙色</option>
+        <option value="red">🟥 红色</option>
+      </select>
+    </div>
+
+    <button class="btn-add" id="btn-add">＋ 添加节点</button>
+
+    <hr />
+
+    <h3>更新节点</h3>
+
+    <div class="form-group">
+      <label>选择要更新的节点</label>
+      <select id="sel-update">
+        <option value="">-- 选择节点 --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>文字（留空 = 不修改）</label>
+      <input id="upd-text" type="text" placeholder="留空 = 不修改" />
+    </div>
+
+    <div class="form-group">
+      <label>标签（逗号分隔，留空 = 不修改）</label>
+      <input id="upd-tags" type="text" placeholder="留空 = 不修改" />
+    </div>
+
+    <div class="form-group">
+      <label>评论数量（-1 = 不修改）</label>
+      <input id="upd-comment-count" type="number" value="-1" min="-1" />
+    </div>
+
+    <div class="form-group">
+      <label>状态图标</label>
+      <select id="upd-state">
+        <option value="__keep__">— 保持不变 —</option>
+        <option value="">— 无 —</option>
+        <option value="success">✓ 成功</option>
+        <option value="warn">! 警告</option>
+        <option value="error">✕ 错误</option>
+        <option value="doing">↻ 进行中</option>
+        <option value="waiting">… 等待中</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>色彩主题</label>
+      <select id="upd-scheme">
+        <option value="__keep__">— 保持不变 —</option>
+        <option value="">— 默认 —</option>
+        <option value="gray">⬜ 灰色</option>
+        <option value="green">🟩 绿色</option>
+        <option value="blue">🟦 蓝色</option>
+        <option value="orange">🟧 橙色</option>
+        <option value="red">🟥 红色</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label><input id="upd-style-check" type="checkbox" /> 同时更新样式</label>
+    </div>
+
+    <div id="upd-style-fields" style="display:none;">
+      <div class="form-group">
+        <label>背景色</label>
+        <div class="color-row">
+          <input id="upd-bg" type="color" value="#e3f2fd" />
+          <span id="lbl-upd-bg">#e3f2fd</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>文字颜色</label>
+        <div class="color-row">
+          <input id="upd-fg" type="color" value="#0d47a1" />
+          <span id="lbl-upd-fg">#0d47a1</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>更改父节点</label>
+      <select id="upd-parent">
+        <option value="__keep__">— 保持不变 —</option>
+        <option value="__root__">— 提升为根节点 —</option>
+      </select>
+    </div>
+
+    <button class="btn-update" id="btn-update">✎ 更新节点</button>
+
+    <hr />
+
+    <h3>子节点排序</h3>
+
+    <div class="form-group">
+      <label>选择父节点</label>
+      <select id="sort-parent">
+        <option value="__roots__">— 根节点列表 —</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>子节点顺序（选中后点击上移/下移）</label>
+      <select id="sort-children" size="5"></select>
+    </div>
+
+    <div class="sort-btn-row">
+      <button class="btn-sort" id="btn-sort-up" style="flex:1;">↑ 上移</button>
+      <button class="btn-sort" id="btn-sort-down" style="flex:1;">↓ 下移</button>
+    </div>
+
+    <button class="btn-sort" id="btn-sort-apply">✓ 应用排序</button>
+
+    <hr />
+
+    <h3>删除节点</h3>
+
+    <div class="form-group">
+      <label>选择要删除的节点</label>
+      <select id="sel-delete">
+        <option value="">-- 选择节点 --</option>
+      </select>
+    </div>
+
+    <button class="btn-delete" id="btn-delete">✕ 删除节点</button>
+
+    <hr />
+
+    <h3>事件日志</h3>
+    <div class="log-box" id="log-box"></div>
+
+  </div>
+
+  <!-- ── mind-map canvas ── -->
+  <div id="map-area">
+    <div id="map-container">
+      <div id="map-inner"></div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+  import MindMap from './mindmap.js';
+
+  // ── Instantiate ─────────────────────────────────────────────────────────────
+  const mm = new MindMap('#map-inner', {
+    layout: 'directory',
+    nodeWidth: 220,
+    nodeHeight: 32,
+    indentWidth: 28,
+    vSpacing: 6,
+    lineColor: '#90a4ae',
+    lineWidth: 1.5,
+    defaultStyle: {
+      backgroundColor: '#e3f2fd',
+      color: '#0d47a1',
+      borderRadius: '3px',
+      fontSize: '13px',
+      fontFamily: 'Consolas, "Courier New", monospace',
+      border: '1px solid #90caf9',
+      padding: '4px 15px',
+      boxSizing: 'border-box',
+      textAlign: 'left',
+      cursor: 'pointer',
+      userSelect: 'none',
+      whiteSpace: 'normal',
+      wordBreak: 'break-word',
+    },
+  });
+
+  // ── Event handlers ──────────────────────────────────────────────────────────
+  mm.on('nodeAdded', ({ node }) => {
+    log(`nodeAdded  id="${node.id}"  text="${node.text}"  parentId="${node.parentId}"`, 'add');
+    refreshSelects();
+  });
+
+  mm.on('nodeDeleted', ({ nodeIds, nodes }) => {
+    const labels = nodes.map((n) => `"${n.text}"(${n.id})`).join(', ');
+    log(`nodeDeleted  ids=[${nodeIds.join(', ')}]  nodes=[${labels}]`, 'delete');
+    refreshSelects();
+  });
+
+  mm.on('nodeClicked', ({ node }) => {
+    log(`nodeClicked  id="${node.id}"  text="${node.text}"`, 'click');
+  });
+
+  mm.on('nodeSelected', ({ node }) => {
+    if (node) {
+      document.getElementById('sel-parent').value = node.id;
+      document.getElementById('sel-delete').value = node.id;
+      document.getElementById('sel-update').value = node.id;
+      // For the sort panel: if the clicked node has children, select it as sort-parent;
+      // otherwise select its own parent so its siblings can be reordered.
+      const sortParentSel = document.getElementById('sort-parent');
+      if (node.children && node.children.length > 0) {
+        sortParentSel.value = node.id;
+      } else if (node.parentId) {
+        sortParentSel.value = node.parentId;
+      } else {
+        sortParentSel.value = '__roots__';
+      }
+      loadSortChildren();
+    }
+  });
+
+  mm.on('nodeReparented', ({ node, oldParentId, newParentId }) => {
+    log(`nodeReparented  id="${node.id}"  ${oldParentId ?? 'null'} → ${newParentId ?? 'null'}`, 'update');
+    refreshSelects();
+  });
+
+  mm.on('nodeChildrenReordered', ({ parentId, childIds }) => {
+    log(`nodeChildrenReordered  parentId="${parentId ?? 'null'}"  order=[${childIds.join(', ')}]`, 'sort');
+    refreshSelects();
+  });
+
+  // ── UI helpers ──────────────────────────────────────────────────────────────
+
+  function refreshSelects() {
+    const parentSel    = document.getElementById('sel-parent');
+    const deleteSel    = document.getElementById('sel-delete');
+    const updateSel    = document.getElementById('sel-update');
+    const updParentSel = document.getElementById('upd-parent');
+    const sortParentSel = document.getElementById('sort-parent');
+    const prevParent     = parentSel.value;
+    const prevDelete     = deleteSel.value;
+    const prevUpdate     = updateSel.value;
+    const prevUpdParent  = updParentSel.value;
+    const prevSortParent = sortParentSel.value;
+
+    parentSel.innerHTML    = '<option value="">-- 无（创建根节点）--</option>';
+    deleteSel.innerHTML    = '<option value="">-- 选择节点 --</option>';
+    updateSel.innerHTML    = '<option value="">-- 选择节点 --</option>';
+    updParentSel.innerHTML = '<option value="__keep__">— 保持不变 —</option><option value="__root__">— 提升为根节点 —</option>';
+    sortParentSel.innerHTML = '<option value="__roots__">— 根节点列表 —</option>';
+
+    // Walk all root trees in BFS order for display
+    mm.getRootIds().forEach((rootId) => {
+      const queue = [{ id: rootId, depth: 0 }];
+      while (queue.length) {
+        const { id, depth } = queue.shift();
+        const node = mm.getNode(id);
+        if (!node) continue;
+        const indent = '　'.repeat(depth);
+        const label = `${indent}${node.text} (${id})`;
+
+        parentSel.appendChild(new Option(label, id));
+        deleteSel.appendChild(new Option(label, id));
+        updateSel.appendChild(new Option(label, id));
+        updParentSel.appendChild(new Option(label, id));
+        sortParentSel.appendChild(new Option(label, id));
+
+        node.children.forEach((cid) => queue.push({ id: cid, depth: depth + 1 }));
+      }
+    });
+
+    // Restore previous selections if still valid
+    if ([...parentSel.options].some((o) => o.value === prevParent))
+      parentSel.value = prevParent;
+    if ([...deleteSel.options].some((o) => o.value === prevDelete))
+      deleteSel.value = prevDelete;
+    if ([...updateSel.options].some((o) => o.value === prevUpdate))
+      updateSel.value = prevUpdate;
+    if ([...updParentSel.options].some((o) => o.value === prevUpdParent))
+      updParentSel.value = prevUpdParent;
+    if ([...sortParentSel.options].some((o) => o.value === prevSortParent))
+      sortParentSel.value = prevSortParent;
+
+    loadSortChildren();
+  }
+
+  function log(msg, type) {
+    const box = document.getElementById('log-box');
+    const entry = document.createElement('div');
+    entry.className = `log-entry log-${type}`;
+    const now = new Date().toLocaleTimeString();
+    entry.textContent = `[${now}] ${msg}`;
+    box.prepend(entry);
+  }
+
+  function handleError(err) { alert(err.message); }
+
+  // ── Sort children helpers ────────────────────────────────────────────────────
+
+  /** Reload the sort-children list from the currently selected sort-parent. */
+  function loadSortChildren() {
+    const sortParentSel  = document.getElementById('sort-parent');
+    const sortChildrenEl = document.getElementById('sort-children');
+    const parentVal = sortParentSel.value;
+
+    let childIds;
+    if (parentVal === '__roots__') {
+      childIds = mm.getRootIds();
+    } else {
+      const node = mm.getNode(parentVal);
+      childIds = node ? node.children : [];
+    }
+
+    const prevSelected = sortChildrenEl.value;
+    sortChildrenEl.innerHTML = '';
+    childIds.forEach((id) => {
+      const node = mm.getNode(id);
+      const label = node ? `${node.text} (${id})` : id;
+      sortChildrenEl.appendChild(new Option(label, id));
+    });
+    // Restore selection if still present
+    if ([...sortChildrenEl.options].some((o) => o.value === prevSelected))
+      sortChildrenEl.value = prevSelected;
+  }
+
+  document.getElementById('sort-parent').addEventListener('change', loadSortChildren);
+
+  document.getElementById('btn-sort-up').addEventListener('click', () => {
+    const sel = document.getElementById('sort-children');
+    const idx = sel.selectedIndex;
+    if (idx <= 0) return;
+    const opt = sel.options[idx];
+    sel.insertBefore(opt, sel.options[idx - 1]);
+    sel.selectedIndex = idx - 1;
+  });
+
+  document.getElementById('btn-sort-down').addEventListener('click', () => {
+    const sel = document.getElementById('sort-children');
+    const idx = sel.selectedIndex;
+    if (idx < 0 || idx >= sel.options.length - 1) return;
+    const opt = sel.options[idx];
+    sel.insertBefore(sel.options[idx + 1], opt);
+    sel.selectedIndex = idx + 1;
+  });
+
+  // ── Button: Apply sort ──────────────────────────────────────────────────────
+  document.getElementById('btn-sort-apply').addEventListener('click', () => {
+    const sortParentSel  = document.getElementById('sort-parent');
+    const sortChildrenEl = document.getElementById('sort-children');
+    const parentVal = sortParentSel.value;
+    const parentId  = parentVal === '__roots__' ? null : parentVal;
+    const childIds  = [...sortChildrenEl.options].map((o) => o.value);
+    if (!childIds.length) { alert('没有可排序的子节点。'); return; }
+    try {
+      mm.reorderChildren(parentId, childIds);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+  // Sync color label displays
+  ['bg', 'fg'].forEach((key) => {
+    const inp = document.getElementById(`inp-${key}`);
+    const lbl = document.getElementById(`lbl-${key}`);
+    inp.addEventListener('input', () => { lbl.textContent = inp.value; });
+  });
+
+  // Sync update-form color label displays
+  ['bg', 'fg'].forEach((key) => {
+    const inp = document.getElementById(`upd-${key}`);
+    const lbl = document.getElementById(`lbl-upd-${key}`);
+    inp.addEventListener('input', () => { lbl.textContent = inp.value; });
+  });
+
+  // Toggle update style fields visibility
+  document.getElementById('upd-style-check').addEventListener('change', (e) => {
+    document.getElementById('upd-style-fields').style.display = e.target.checked ? '' : 'none';
+  });
+
+  // ── Button: Add node ────────────────────────────────────────────────────────
+  document.getElementById('btn-add').addEventListener('click', () => {
+    const text    = document.getElementById('inp-text').value.trim() || '新节点';
+    const parentId = document.getElementById('sel-parent').value || null;
+    const bg      = document.getElementById('inp-bg').value;
+    const fg      = document.getElementById('inp-fg').value;
+    const radius  = document.getElementById('inp-radius').value + 'px';
+    const fs      = document.getElementById('inp-fs').value + 'px';
+    const tagsRaw = document.getElementById('inp-tags').value;
+    const tags    = tagsRaw.split(',').map((t) => t.trim()).filter((t) => t.length > 0);
+    const state   = document.getElementById('sel-state').value;
+    const colorScheme = document.getElementById('sel-scheme').value;
+    const commentCount = parseInt(document.getElementById('inp-comment-count').value, 10) || 0;
+
+    const style = colorScheme ? {} : {
+      backgroundColor: bg,
+      color: fg,
+      borderRadius: radius,
+      fontSize: fs,
+      border: `2px solid ${darken(bg)}`,
+    };
+
+    try {
+      const newId = mm.addNode(parentId, { text, tags, state, colorScheme, commentCount }, style);
+      // Auto-select new node
+      document.getElementById('sel-parent').value = newId;
+      document.getElementById('sel-delete').value = newId;
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+  // ── Button: Update node ─────────────────────────────────────────────────────
+  document.getElementById('btn-update').addEventListener('click', () => {
+    const nodeId = document.getElementById('sel-update').value;
+    if (!nodeId) { alert('请先选择要更新的节点。'); return; }
+
+    const data = {};
+    const style = {};
+
+    const text = document.getElementById('upd-text').value.trim();
+    if (text) data.text = text;
+
+    const tagsRaw = document.getElementById('upd-tags').value.trim();
+    if (tagsRaw) data.tags = tagsRaw.split(',').map((t) => t.trim()).filter((t) => t);
+
+    const commentCountVal = parseInt(document.getElementById('upd-comment-count').value, 10);
+    if (!isNaN(commentCountVal) && commentCountVal >= 0) data.commentCount = commentCountVal;
+
+    const state = document.getElementById('upd-state').value;
+    if (state !== '__keep__') data.state = state;
+
+    const scheme = document.getElementById('upd-scheme').value;
+    if (scheme !== '__keep__') data.colorScheme = scheme;
+
+    if (document.getElementById('upd-style-check').checked) {
+      style.backgroundColor = document.getElementById('upd-bg').value;
+      style.color           = document.getElementById('upd-fg').value;
+    }
+
+    const parentVal = document.getElementById('upd-parent').value;
+    if (parentVal === '__root__') {
+      data.parentId = null;
+    } else if (parentVal !== '__keep__') {
+      data.parentId = parentVal;
+    }
+
+    try {
+      mm.updateNode(nodeId, data, style);
+      log(`nodeUpdated  id="${nodeId}"  ${JSON.stringify(data)}`, 'update');
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+  // ── Button: Delete node ─────────────────────────────────────────────────────
+  document.getElementById('btn-delete').addEventListener('click', () => {
+    const id = document.getElementById('sel-delete').value;
+    if (!id) { alert('请先选择要删除的节点。'); return; }
+    try {
+      mm.deleteNode(id);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  /** Darken a hex colour by ~20 % for the border. */
+  function darken(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const r = Math.max(0, (n >> 16) - 40);
+    const g = Math.max(0, ((n >> 8) & 0xff) - 40);
+    const b = Math.max(0, (n & 0xff) - 40);
+    return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
+  }
+
+  // ── Seed an initial directory tree ──────────────────────────────────────────
+  const rootStyle = {
+    backgroundColor: '#1565c0',
+    color: '#fff',
+    border: '1px solid #0d47a1',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    borderRadius: '4px',
+  };
+  const folderStyle = {
+    backgroundColor: '#fff8e1',
+    color: '#5d4037',
+    border: '1px solid #ffe082',
+    borderRadius: '3px',
+  };
+  const fileStyle = {
+    backgroundColor: '#f1f8e9',
+    color: '#33691e',
+    border: '1px solid #c5e1a5',
+    borderRadius: '3px',
+    fontSize: '12px',
+  };
+
+  const rootId = mm.addNode(null, { id: 'root', text: '📦 frontend-project', tags: ['v2.0', 'main'], state: 'success', commentCount: 3 }, rootStyle);
+
+  const srcId  = mm.addNode(rootId, { text: '📁 src', tags: ['src'], state: 'success', commentCount: 5 }, folderStyle);
+  mm.addNode(srcId,  { text: '📄 main.ts', tags: ['ts'], state: 'success' }, fileStyle);
+  mm.addNode(srcId,  { text: '📄 App.vue', state: 'warn', commentCount: 2 }, fileStyle);
+  const compId = mm.addNode(srcId, { text: '📁 components', tags: ['components'] }, folderStyle);
+  mm.addNode(compId, { text: '📄 Header.vue', state: 'success', commentCount: 1 }, fileStyle);
+  mm.addNode(compId, { text: '📄 Footer.vue' }, fileStyle);
+  mm.addNode(compId, { text: '📄 Sidebar.vue' }, fileStyle);
+
+  const docsId = mm.addNode(rootId, { text: '📁 docs', tags: ['docs'], state: 'warn', commentCount: 4 }, folderStyle);
+  mm.addNode(docsId, { text: '📄 README.md', state: 'success' }, fileStyle);
+  mm.addNode(docsId, { text: '📄 API参考.md', state: 'doing', commentCount: 7 }, fileStyle);
+  mm.addNode(docsId, { text: '📄 CHANGELOG.md', state: 'waiting' }, fileStyle);
+
+  const testId = mm.addNode(rootId, { text: '📁 tests', tags: ['test', 'ci'], state: 'success' }, folderStyle);
+  mm.addNode(testId, { text: '📄 unit.spec.ts', state: 'success', commentCount: 2 }, fileStyle);
+  mm.addNode(testId, { text: '📄 e2e.spec.ts', state: 'warn' }, fileStyle);
+  mm.addNode(testId, { text: '📄 lint.spec.ts', state: 'error', commentCount: 3 }, fileStyle);
+
+  mm.addNode(rootId, { text: '📄 package.json', tags: ['config'] }, fileStyle);
+  mm.addNode(rootId, { text: '📄 vite.config.ts', tags: ['config'] }, fileStyle);
+
+  refreshSelects();
+</script>
+</body>
+</html>
