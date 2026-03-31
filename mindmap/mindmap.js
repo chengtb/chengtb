@@ -1129,8 +1129,20 @@ class MindMap {
         textEl.appendChild(iconEl);
       }
       const textSpan = document.createElement('span');
-      textSpan.textContent = node.commentCount > 0 ? `${node.text} ${node.commentCount}` : node.text;
+      textSpan.textContent = node.text;
       textEl.appendChild(textSpan);
+
+      // Comment count with SVG icon, rendered inline after node name
+      if (node.commentCount > 0) {
+        const commentEl = document.createElement('span');
+        commentEl.style.cssText = 'display:inline-flex;align-items:center;gap:2px;margin-left:5px;opacity:0.75;flex-shrink:0;';
+        commentEl.innerHTML =
+          `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:middle;">` +
+            `<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>` +
+          `</svg>`;
+        commentEl.appendChild(document.createTextNode(String(node.commentCount)));
+        textEl.appendChild(commentEl);
+      }
 
       el.appendChild(textEl);
 
