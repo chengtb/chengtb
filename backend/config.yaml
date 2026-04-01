@@ -1,0 +1,23 @@
+# Restaurant KDS Configuration
+# Values shown below are the built-in defaults.
+# Any item omitted from this file will automatically use its default value.
+
+server:
+  port: "8080"                       # HTTP / WebSocket listening port
+
+database:
+  host: "127.0.0.1"
+  port: "3306"
+  user: "root"
+  password: ""
+  name: "restaurant_kds"
+  max_idle_conns: 10                 # connection-pool: max idle connections
+  max_open_conns: 100                # connection-pool: max open connections
+  conn_max_lifetime_minutes: 60      # connection-pool: max connection lifetime (minutes)
+
+business:
+  merge_window_minutes: 5            # time window for smart order merging (minutes)
+  refund_permissions:
+    not_made: "waiter"               # role required for un-made dish refunds
+    made_not_served: "leader"        # role required for cooked-but-not-served refunds
+    served: "manager"                # role required for served dish refunds
