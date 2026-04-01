@@ -17,7 +17,7 @@ func main() {
 	cfg := config.Load()
 
 	// Initialize database
-	models.InitDB(cfg.DSN())
+	models.InitDB(cfg)
 
 	// Initialize WebSocket hub
 	hub := ws.NewHub()
@@ -25,8 +25,8 @@ func main() {
 
 	// Initialize services
 	orderService := services.NewOrderService(models.DB, hub)
-	kitchenService := services.NewKitchenService(models.DB, hub, cfg.MergeWindowMinutes)
-	refundService := services.NewRefundService(models.DB)
+	kitchenService := services.NewKitchenService(models.DB, hub, cfg.Business.MergeWindowMinutes)
+	refundService := services.NewRefundService(models.DB, &cfg.Business.RefundPermissions)
 	giftService := services.NewGiftService(models.DB)
 
 	// Initialize handlers
@@ -84,8 +84,8 @@ func main() {
 	r.Static("/waiter", "./frontend/waiter-app/dist")
 	r.Static("/kds", "./frontend/kds-app/dist")
 
-	log.Printf("Server starting on port %s", cfg.ServerPort)
-	if err := r.Run(":" + cfg.ServerPort); err != nil {
+	log.Printf("Server starting on port %s", cfg.Server.Port)
+	if err := r.Run(":" + cfg.Server.Port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }

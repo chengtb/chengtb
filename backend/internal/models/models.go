@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/chengtb/restaurant-kds/internal/config"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -18,9 +19,9 @@ type Model struct {
 
 var DB *gorm.DB
 
-func InitDB(dsn string) {
+func InitDB(cfg *config.Config) {
 	var err error
-	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	DB, err = gorm.Open(mysql.Open(cfg.DSN()), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -28,9 +29,9 @@ func InitDB(dsn string) {
 	if err != nil {
 		log.Fatalf("Failed to get underlying sql.DB: %v", err)
 	}
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
-	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetMaxIdleConns(cfg.Database.MaxIdleConns)
+	sqlDB.SetMaxOpenConns(cfg.Database.MaxOpenConns)
+	sqlDB.SetConnMaxLifetime(time.Duration(cfg.Database.ConnMaxLifetimeMin) * time.Minute)
 
 	err = DB.AutoMigrate(
 		&Region{}, &Table{}, &Category{}, &Product{}, &ProductSpec{},

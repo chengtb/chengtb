@@ -3,16 +3,18 @@ package services
 import (
 	"fmt"
 
+	"github.com/chengtb/restaurant-kds/internal/config"
 	"github.com/chengtb/restaurant-kds/internal/models"
 	"gorm.io/gorm"
 )
 
 type RefundService struct {
-	DB *gorm.DB
+	DB                *gorm.DB
+	RefundPermissions *config.RefundPermissionConfig
 }
 
-func NewRefundService(db *gorm.DB) *RefundService {
-	return &RefundService{DB: db}
+func NewRefundService(db *gorm.DB, perms *config.RefundPermissionConfig) *RefundService {
+	return &RefundService{DB: db, RefundPermissions: perms}
 }
 
 // RefundRequest holds the payload for creating a refund
@@ -82,6 +84,8 @@ func (s *RefundService) CreateRefund(req *RefundRequest) (*models.RefundRecord, 
 func (s *RefundService) checkRefundPermission(refundType models.RefundType, operatorID uint, approvalCode string) error {
 	switch refundType {
 	case models.RefundTypeNotMade:
+		// Configured role: s.RefundPermissions.NotMade (default "waiter")
+		// Any valid staff member can refund items that have not been made.
 		var staff models.Staff
 		if err := s.DB.First(&staff, operatorID).Error; err != nil {
 			return fmt.Errorf("operator not found")
@@ -89,22 +93,24 @@ func (s *RefundService) checkRefundPermission(refundType models.RefundType, oper
 		return nil
 
 	case models.RefundTypeMadeNotServed:
+		requiredRole := models.StaffRole(s.RefundPermissions.MadeNotServed)
 		if approvalCode == "" {
-			return fmt.Errorf("leader approval code required for made-but-not-served refund")
+			return fmt.Errorf("%s approval code required for made-but-not-served refund", requiredRole)
 		}
-		var leader models.Staff
-		if err := s.DB.Where("role = ? AND auth_code = ?", models.StaffRoleLeader, approvalCode).First(&leader).Error; err != nil {
-			return fmt.Errorf("invalid leader approval code")
+		var approver models.Staff
+		if err := s.DB.Where("role = ? AND auth_code = ?", requiredRole, approvalCode).First(&approver).Error; err != nil {
+			return fmt.Errorf("invalid %s approval code", requiredRole)
 		}
 		return nil
 
 	case models.RefundTypeServed:
+		requiredRole := models.StaffRole(s.RefundPermissions.Served)
 		if approvalCode == "" {
-			return fmt.Errorf("manager approval code required for served-dish refund")
+			return fmt.Errorf("%s approval code required for served-dish refund", requiredRole)
 		}
-		var manager models.Staff
-		if err := s.DB.Where("role = ? AND auth_code = ?", models.StaffRoleManager, approvalCode).First(&manager).Error; err != nil {
-			return fmt.Errorf("invalid manager approval code")
+		var approver models.Staff
+		if err := s.DB.Where("role = ? AND auth_code = ?", requiredRole, approvalCode).First(&approver).Error; err != nil {
+			return fmt.Errorf("invalid %s approval code", requiredRole)
 		}
 		return nil
 	}

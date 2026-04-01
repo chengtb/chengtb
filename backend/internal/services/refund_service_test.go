@@ -3,6 +3,7 @@ package services
 import (
 	"testing"
 
+	"github.com/chengtb/restaurant-kds/internal/config"
 	"github.com/chengtb/restaurant-kds/internal/models"
 )
 
@@ -27,7 +28,9 @@ func TestRefundNotMade(t *testing.T) {
 		Items:   []CreateOrderItem{{ProductID: product.ID, Quantity: 1}},
 	})
 
-	refundSvc := NewRefundService(db)
+	refundSvc := NewRefundService(db, &config.RefundPermissionConfig{
+		NotMade: "waiter", MadeNotServed: "leader", Served: "manager",
+	})
 	record, err := refundSvc.CreateRefund(&RefundRequest{
 		OrderItemID:  order.Items[0].ID,
 		RefundReason: "Customer changed mind",
@@ -75,7 +78,9 @@ func TestRefundMadeNotServedRequiresLeader(t *testing.T) {
 	// Set item to cooked status
 	db.Model(&models.OrderItem{}).Where("id = ?", order.Items[0].ID).Update("status", models.OrderItemStatusCooked)
 
-	refundSvc := NewRefundService(db)
+	refundSvc := NewRefundService(db, &config.RefundPermissionConfig{
+		NotMade: "waiter", MadeNotServed: "leader", Served: "manager",
+	})
 
 	// Without approval code - should fail
 	_, err := refundSvc.CreateRefund(&RefundRequest{
@@ -137,7 +142,9 @@ func TestRefundServedRequiresManager(t *testing.T) {
 	// Set item to served status
 	db.Model(&models.OrderItem{}).Where("id = ?", order.Items[0].ID).Update("status", models.OrderItemStatusServed)
 
-	refundSvc := NewRefundService(db)
+	refundSvc := NewRefundService(db, &config.RefundPermissionConfig{
+		NotMade: "waiter", MadeNotServed: "leader", Served: "manager",
+	})
 
 	// Without approval code - should fail
 	_, err := refundSvc.CreateRefund(&RefundRequest{
