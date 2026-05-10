@@ -10,6 +10,9 @@ func TestParseParams(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseParams returned error: %v", err)
 	}
+	if len(got) != 2 {
+		t.Fatalf("unexpected params count: %d", len(got))
+	}
 	if got["name"] != "zhangsan" {
 		t.Fatalf("unexpected name: %q", got["name"])
 	}
@@ -34,6 +37,32 @@ func TestValidateInputMissingRequired(t *testing.T) {
 		t.Fatal("expected validation error")
 	}
 	if !strings.Contains(err.Error(), "missing required -image") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateInputMissingOutput(t *testing.T) {
+	err := validateInput(inputConfig{
+		imagePath: "./main.go",
+		rawParams: []string{"name=zhangsan"},
+	})
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "missing required -output") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateInputMissingParam(t *testing.T) {
+	err := validateInput(inputConfig{
+		imagePath: "./main.go",
+		outputPDF: "./out.pdf",
+	})
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "missing required -param") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

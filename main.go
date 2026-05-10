@@ -99,7 +99,7 @@ func generatePDF(imagePath, outputPath string, params map[string]string) error {
 	pdf.SetAutoPageBreak(false, 0)
 	pdf.AddPage()
 
-	imgOpts := fpdf.ImageOptions{ImageType: "", ReadDpi: true}
+	imgOpts := fpdf.ImageOptions{ReadDpi: true}
 	info := pdf.RegisterImageOptions(imagePath, imgOpts)
 	if info == nil {
 		return fmt.Errorf("failed to read image file %q", imagePath)
@@ -158,11 +158,4 @@ func generatePDF(imagePath, outputPath string, params map[string]string) error {
 		return fmt.Errorf("failed to write output pdf %q: %w", outputPath, err)
 	}
 	return nil
-}
-
-func min(a, b float64) float64 {
-	if a < b {
-		return a
-	}
-	return b
 }
