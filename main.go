@@ -136,7 +136,11 @@ func generateRecipeCardPDF(in RecipeCardInput, outputPath, fontPath string, time
 			return fmt.Errorf("invalid font file: %w", err)
 		}
 		pdf.AddUTF8Font("custom", "", fontPath)
-		if err := pdf.Err(); err != nil {
+		if pdf.Err() {
+			err := pdf.Error()
+			if err == nil {
+				err = errors.New("unknown PDF font loading error")
+			}
 			return fmt.Errorf("load UTF-8 font: %w", err)
 		}
 		fontFamily = "custom"
@@ -192,7 +196,7 @@ func drawTemplate(pdf *gofpdf.Fpdf, in RecipeCardInput, fontFamily string, timeo
 	pdf.MultiCell(leftW-6, 5, in.Description, "", "L", false)
 
 	stepsTop := upperTop + descH + 2
-	stepsH := contentH - (stepsTop-topMargin) - 2
+	stepsH := contentH - (stepsTop - topMargin) - 2
 	pdf.Rect(leftMargin+2, stepsTop, leftW, stepsH, "D")
 	pdf.SetFont(fontFamily, "B", 11)
 	pdf.SetXY(leftMargin+4, stepsTop+2)
@@ -234,7 +238,7 @@ func drawTemplate(pdf *gofpdf.Fpdf, in RecipeCardInput, fontFamily string, timeo
 	}
 
 	imageTop := upperTop + binH + 2
-	imageH := contentH - (imageTop-topMargin) - 2
+	imageH := contentH - (imageTop - topMargin) - 2
 	imageGap := 2.0
 	imageBoxW := (rightW - imageGap) / 2
 
@@ -254,7 +258,11 @@ func drawTemplate(pdf *gofpdf.Fpdf, in RecipeCardInput, fontFamily string, timeo
 		return fmt.Errorf("draw finishedImage: %w", err)
 	}
 
-	if err := pdf.Err(); err != nil {
+	if pdf.Err() {
+		err := pdf.Error()
+		if err == nil {
+			err = errors.New("unknown PDF rendering error")
+		}
 		return err
 	}
 	return nil
@@ -279,7 +287,11 @@ func drawImageFromSource(pdf *gofpdf.Fpdf, name, source string, x, y, maxW, maxH
 		ImageType: strings.ToUpper(imageType),
 		ReadDpi:   true,
 	}, bytes.NewReader(content))
-	if err := pdf.Err(); err != nil {
+	if pdf.Err() {
+		err := pdf.Error()
+		if err == nil {
+			err = errors.New("unknown image registration error")
+		}
 		return err
 	}
 
@@ -287,8 +299,7 @@ func drawImageFromSource(pdf *gofpdf.Fpdf, name, source string, x, y, maxW, maxH
 	if info == nil {
 		return errors.New("failed to parse image info")
 	}
-	w := info.Extent().Wd
-	h := info.Extent().Ht
+	w, h := info.Extent()
 	if w <= 0 || h <= 0 {
 		return errors.New("invalid image dimensions")
 	}
