@@ -1,0 +1,36 @@
+{
+  "recipeName": "宫保鸡丁",
+  "recipeNumber": "RCP-2026-001",
+  "developmentTime": "2026-05-10",
+  "machineType": "X1000",
+  "description": "经典川味下饭菜，口感香辣微甜。",
+  "preparationSteps": [
+    "鸡胸肉切丁，加入料酒、生抽、淀粉腌制 15 分钟。",
+    "准备花生米、干辣椒、葱姜蒜。",
+    "按顺序下锅翻炒并收汁。"
+  ],
+  "bins": {
+    "A": {
+      "ingredient": "鸡丁",
+      "amount": "300g",
+      "remark": "去筋膜"
+    },
+    "B": {
+      "ingredient": "花生米",
+      "amount": "80g",
+      "remark": "提前炸香"
+    },
+    "C": {
+      "ingredient": "干辣椒",
+      "amount": "20g",
+      "remark": "剪段"
+    },
+    "D": {
+      "ingredient": "葱姜蒜",
+      "amount": "50g",
+      "remark": "切末"
+    }
+  },
+  "rawMaterialImage": "https://picsum.photos/seed/raw-food/800/600",
+  "finishedImage": "https://picsum.photos/seed/finished-food/800/600"
+}
