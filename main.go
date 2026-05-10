@@ -28,6 +28,7 @@ const (
 	pageHeightMM  = 210.0
 	rightPanelMM  = 64.0
 	maxImageBytes = 20 << 20
+	httpTimeout   = 25 * time.Second
 )
 
 type RecipeCardInput struct {
@@ -120,7 +121,7 @@ func validateInput(in *RecipeCardInput) error {
 		return fmt.Errorf("missing required fields: %s", strings.Join(missing, ", "))
 	}
 
-	norm := make(map[string][]string, 4)
+	normalizedCompartments := make(map[string][]string, 4)
 	for k, v := range in.Compartments {
 		label := strings.ToUpper(strings.TrimSpace(k))
 		if label == "" {
@@ -134,12 +135,12 @@ func validateInput(in *RecipeCardInput) error {
 			}
 		}
 		if len(cleaned) > 0 {
-			norm[label] = cleaned
+			normalizedCompartments[label] = cleaned
 		}
 	}
 
 	for _, label := range []string{"A", "B", "C", "D"} {
-		if len(norm[label]) == 0 {
+		if len(normalizedCompartments[label]) == 0 {
 			missing = append(missing, "compartments."+label)
 		}
 	}
@@ -148,7 +149,7 @@ func validateInput(in *RecipeCardInput) error {
 		return fmt.Errorf("missing required fields: %s", strings.Join(missing, ", "))
 	}
 
-	in.Compartments = norm
+	in.Compartments = normalizedCompartments
 
 	if err := validateURL(in.IngredientsImageURL); err != nil {
 		return fmt.Errorf("ingredients_image_url: %w", err)
@@ -172,7 +173,7 @@ func validateURL(raw string) error {
 }
 
 func generatePDF(ctx context.Context, in RecipeCardInput, outputPath string) error {
-	client := &http.Client{Timeout: 25 * time.Second}
+	client := &http.Client{Timeout: httpTimeout}
 	ingredientsImg, ingredientsType, err := fetchImage(ctx, client, in.IngredientsImageURL)
 	if err != nil {
 		return fmt.Errorf("download ingredients image: %w", err)

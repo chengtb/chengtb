@@ -15,9 +15,9 @@ func TestValidateInputSuccess(t *testing.T) {
 		PreparationSteps: []string{"Step 1", "Step 2"},
 		Compartments: map[string][]string{
 			"a": {"Garlic: 15g"},
-			"B": {"Lettuce: 250g", "Lard: 10g"},
-			"C": {"Lettuce: 100g"},
-			"D": {"Lettuce: 100g"},
+			"b": {"Lettuce: 250g", "Lard: 10g"},
+			"c": {"Lettuce: 100g"},
+			"d": {"Lettuce: 100g"},
 		},
 		IngredientsImageURL: "https://example.com/ingredients.jpg",
 		DishImageURL:        "https://example.com/dish.png",
