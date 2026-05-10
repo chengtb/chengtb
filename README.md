@@ -12,12 +12,12 @@
 ## 快速开始
 
 ```bash
-go run . -input /home/runner/work/chengtb/chengtb/sample-input.json -output /home/runner/work/chengtb/chengtb/recipe-card.pdf
+go run . -input sample-input.json -output recipe-card.pdf
 ```
 
 生成后文件位于：
 
-`/home/runner/work/chengtb/chengtb/recipe-card.pdf`
+`recipe-card.pdf`
 
 ## 输入 JSON 格式
 
