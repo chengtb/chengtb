@@ -1,0 +1,20 @@
+{
+  "title": "Garlic-Fragrant Romaine Lettuce",
+  "recipe_no": "00015491",
+  "development_date": "January 1, 2024",
+  "machine": "Cheetah (H22)",
+  "description": "Romaine lettuce is rich in vitamins, calcium, iron and other nutrients — a premium leafy vegetable. Unique flavor, tender texture, and a fresh clean taste.",
+  "preparation_steps": [
+    "Lightly smash the garlic cloves.",
+    "Wash the romaine lettuce and cut into 8 cm sections.",
+    "Place all prepared ingredients into the four compartments in order."
+  ],
+  "compartments": {
+    "A": ["Smashed garlic cloves: 15g"],
+    "B": ["Romaine lettuce: 250g", "Lard: 10g"],
+    "C": ["Romaine lettuce: 100g"],
+    "D": ["Romaine lettuce: 100g"]
+  },
+  "ingredients_image_url": "https://github.com/user-attachments/assets/67c02925-e617-4bb5-9aee-9c6f3dff2108",
+  "dish_image_url": "https://github.com/user-attachments/assets/67c02925-e617-4bb5-9aee-9c6f3dff2108"
+}
