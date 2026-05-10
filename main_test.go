@@ -14,10 +14,10 @@ func TestValidateInputSuccess(t *testing.T) {
 		Description:      "Healthy green dish",
 		PreparationSteps: []string{"Step 1", "Step 2"},
 		Compartments: map[string][]string{
-			"a": {"Garlic: 15g"},
-			"b": {"Lettuce: 250g", "Lard: 10g"},
-			"c": {"Lettuce: 100g"},
-			"d": {"Lettuce: 100g"},
+			" a ": {"Garlic: 15g"},
+			"b":   {"Lettuce: 250g", "Lard: 10g"},
+			"c":   {"Lettuce: 100g"},
+			"D":   {"Lettuce: 100g"},
 		},
 		IngredientsImageURL: "https://example.com/ingredients.jpg",
 		DishImageURL:        "https://example.com/dish.png",
@@ -27,8 +27,10 @@ func TestValidateInputSuccess(t *testing.T) {
 		t.Fatalf("validateInput() error = %v", err)
 	}
 
-	if _, ok := input.Compartments["A"]; !ok {
-		t.Fatalf("expected compartments to normalize labels to uppercase")
+	for _, key := range []string{"A", "B", "C", "D"} {
+		if _, ok := input.Compartments[key]; !ok {
+			t.Fatalf("expected compartments to normalize labels to uppercase, missing %s", key)
+		}
 	}
 }
 

@@ -29,6 +29,7 @@ const (
 	rightPanelMM  = 64.0
 	maxImageBytes = 20 << 20
 	httpTimeout   = 25 * time.Second
+	stepSpacingMM = 6.0
 )
 
 type RecipeCardInput struct {
@@ -241,7 +242,7 @@ func fetchImage(ctx context.Context, client *http.Client, imageURL string) ([]by
 	}
 
 	switch strings.ToLower(format) {
-	case "jpeg", "jpg":
+	case "jpeg":
 		return data, "JPG", nil
 	case "png":
 		return data, "PNG", nil
@@ -256,12 +257,12 @@ func placeImage(pdf *gofpdf.Fpdf, name string, data []byte, imgType string, x, y
 	opts := gofpdf.ImageOptions{ImageType: imgType, ReadDpi: true}
 	info := pdf.RegisterImageOptionsReader(name, opts, bytes.NewReader(data))
 	if info == nil {
-		return fmt.Errorf("register image %s failed", name)
+		return fmt.Errorf("failed to register image %s: image data may be invalid or corrupted", name)
 	}
 
 	imgW, imgH := info.Extent()
 	if imgW <= 0 || imgH <= 0 {
-		return fmt.Errorf("invalid dimensions for image %s", name)
+		return fmt.Errorf("invalid dimensions for image %s: width=%.2f, height=%.2f", name, imgW, imgH)
 	}
 	scale := math.Min(boxW/imgW, boxH/imgH)
 	if scale <= 0 {
@@ -371,8 +372,8 @@ func drawPreparationSteps(pdf *gofpdf.Fpdf, in RecipeCardInput, leftW float64) {
 	pdf.SetFont("Arial", "", 8)
 	baseY := y + 7
 	for i, step := range in.PreparationSteps {
-		lineY := baseY + float64(i)*6
-		if lineY+6 > y+h {
+		lineY := baseY + float64(i)*stepSpacingMM
+		if lineY+stepSpacingMM > y+h {
 			break
 		}
 		pdf.SetTextColor(201, 148, 26)
